@@ -29,6 +29,7 @@ const ReturnDeliveySchema = new mongoose.Schema({
     },
     items:[deliveryItemSchema],
     notes: { type: String },
+     totalAmount: { type: Number, default: 0 }, 
 
     
     

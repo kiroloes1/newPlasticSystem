@@ -14,21 +14,22 @@ exports.createReturnDelivery = async (req, res) => {
         const { supplier, items, notes } = req.body;
         const adminId = req.user.userId;
 
-        if (!supplier || !items || items.length === 0) {
+        if (!supplier || !items?.length) {
             throw new Error("المورد والأصناف مطلوبين");
         }
 
-        const supplierExists = await Supplier.findById(supplier).session(session);
-        if (!supplierExists) throw new Error("المورد غير موجود");
+        const supplierDoc = await Supplier.findById(supplier).session(session);
+        if (!supplierDoc) throw new Error("المورد غير موجود");
 
         let totalAmount = 0;
 
         for (const item of items) {
+
             let totalWeight = 0;
 
             for (const batch of item.batches) {
                 if (batch.weight < 0 || batch.quantity <= 0) {
-                    throw new Error("Invalid batch");
+                    throw new Error("Invalid batch data");
                 }
                 totalWeight += batch.weight * batch.quantity;
             }
@@ -45,31 +46,30 @@ exports.createReturnDelivery = async (req, res) => {
             supplier,
             receivedBy: adminId,
             items,
-            totalAmount,
-            notes
+            notes,
+            totalAmount
         }], { session });
 
-        
-        supplierExists.remainingBalance -= totalAmount;
+        supplierDoc.remainingBalance -= totalAmount;
 
-        supplierExists.transactions.push({
+        supplierDoc.transactions.push({
             type: "return",
             deliveryId: returnDelivery[0]._id,
             totalAmount,
             paid: 0,
-            remainingBalance: supplierExists.remainingBalance,
+            remainingBalance: supplierDoc.remainingBalance,
             note: "Return delivery",
             date: new Date()
         });
 
-        await supplierExists.save({ session });
+        await supplierDoc.save({ session });
 
         await session.commitTransaction();
         session.endSession();
 
         res.status(201).json({
             message: "تم إنشاء المرتجع بنجاح",
-            returnDelivery: returnDelivery[0]
+            data: returnDelivery[0]
         });
 
     } catch (err) {
@@ -78,7 +78,6 @@ exports.createReturnDelivery = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
-
 // update
 exports.updateReturnDelivery = async (req, res) => {
     const session = await mongoose.startSession();
@@ -86,28 +85,30 @@ exports.updateReturnDelivery = async (req, res) => {
 
     try {
         const { id } = req.params;
-        const updates = req.body;
-
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            throw new Error("ID غير صحيح");
-        }
+        const { items, notes } = req.body;
+        const adminId = req.user.userId;
 
         const oldReturn = await ReturnDelivery.findById(id).session(session);
-        if (!oldReturn) throw new Error("المرتجع غير موجود");
+        if (!oldReturn) throw new Error("غير موجود");
 
         const supplier = await Supplier.findById(oldReturn.supplier).session(session);
 
+        // ======================
         // rollback القديم
-        supplier.remainingBalance += oldReturn.totalReturnPrice;
+        // ======================
+        supplier.remainingBalance += oldReturn.totalAmount || 0;
 
         supplier.transactions = supplier.transactions.filter(
-            t => t.deliveryId.toString() !== id
+            t => !(t.type === "return" && t.deliveryId?.toString() === id)
         );
 
-        // recalculation
-        let totalAmount = 0;
+        // ======================
+        // حساب الجديد
+        // ======================
+        let newTotal = 0;
 
-        for (const item of updates.items) {
+        for (const item of items) {
+
             let totalWeight = 0;
 
             for (const batch of item.batches) {
@@ -119,16 +120,18 @@ exports.updateReturnDelivery = async (req, res) => {
             item.totalReturnWeight = totalWeight;
             item.totalReturnPrice = totalPrice;
 
-            totalAmount += totalPrice;
+            newTotal += totalPrice;
         }
 
+        // ======================
         // apply الجديد
-        supplier.remainingBalance -= totalAmount;
+        // ======================
+        supplier.remainingBalance -= newTotal;
 
         supplier.transactions.push({
             type: "return",
             deliveryId: id,
-            totalAmount,
+            totalAmount: newTotal,
             remainingBalance: supplier.remainingBalance,
             note: "Updated return",
             date: new Date()
@@ -138,16 +141,20 @@ exports.updateReturnDelivery = async (req, res) => {
 
         const updated = await ReturnDelivery.findByIdAndUpdate(
             id,
-            { ...updates, totalAmount },
+            {
+                items,
+                notes,
+                totalAmount: newTotal
+            },
             { new: true, session }
         );
 
         await session.commitTransaction();
         session.endSession();
 
-        res.status(200).json({
+        res.json({
             message: "تم التعديل بنجاح",
-            returnDelivery: updated
+            data: updated
         });
 
     } catch (err) {
@@ -170,21 +177,20 @@ exports.deleteReturnDelivery = async (req, res) => {
 
         const supplier = await Supplier.findById(oldReturn.supplier).session(session);
 
-        // rollback
-        supplier.remainingBalance += oldReturn.totalReturnPrice;
+        supplier.remainingBalance += oldReturn.totalAmount || 0;
 
         supplier.transactions = supplier.transactions.filter(
-            t => t.deliveryId.toString() !== id
+            t => !(t.type === "return" && t.deliveryId?.toString() === id)
         );
 
         await supplier.save({ session });
 
-        await ReturnDelivery.findByIdAndDelete(id, { session });
+        await ReturnDelivery.findByIdAndDelete(id).session(session);
 
         await session.commitTransaction();
         session.endSession();
 
-        res.status(200).json({ message: "تم الحذف بنجاح" });
+        res.json({ message: "تم الحذف بنجاح" });
 
     } catch (err) {
         await session.abortTransaction();

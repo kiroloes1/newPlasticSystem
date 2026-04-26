@@ -218,7 +218,8 @@ exports.updateDelivery = async (req, res) => {
             teaForWorkers = 0,
             carPayment = 0,
             payment = [],
-            notes
+            notes,
+                note,  // to money box
         } = req.body;
 
         const payments = Array.isArray(payment) ? payment : [];

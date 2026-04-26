@@ -26,7 +26,7 @@ const deliverSchema = new mongoose.Schema({
 delveryNumber: { type: Number, required: true },
   supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier', required: true },
   deliveryDate: { type: Date, default: Date.now },
-  receivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', required: true },   
+  receivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },   
   items: [deliveryItemSchema],                        
   totalAmount: { type: Number, default: 0 },       
   oldBalance: { type: Number, default: 0 }, 

@@ -3,6 +3,7 @@ const Supplier = require(`${__dirname}/../../models/supplier`);
 const Admin = require(`${__dirname}/../../models/users`);
 const Item = require(`${__dirname}/../../models/fixedCategoryModel`);
 const TransactionModel=require(`${__dirname}/../../models/TransactionBox`);
+const { getCashBox } = require(`${__dirname}/../services/moneyBox`);
 const mongoose = require('mongoose');
 
 

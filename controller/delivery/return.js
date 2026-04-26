@@ -5,7 +5,6 @@ const Item = require(`${__dirname}/../../models/fixedCategoryModel`);
 const TransactionModel=require(`${__dirname}/../../models/TransactionBox`);
 const mongoose = require('mongoose');
 
-
 // create
 exports.createReturnDelivery = async (req, res) => {
     const session = await mongoose.startSession();
@@ -99,7 +98,7 @@ exports.updateReturnDelivery = async (req, res) => {
         const supplier = await Supplier.findById(oldReturn.supplier).session(session);
 
         // rollback القديم
-        supplier.remainingBalance += oldReturn.totalAmount;
+        supplier.remainingBalance += oldReturn.totalReturnPrice;
 
         supplier.transactions = supplier.transactions.filter(
             t => t.deliveryId.toString() !== id
@@ -172,7 +171,7 @@ exports.deleteReturnDelivery = async (req, res) => {
         const supplier = await Supplier.findById(oldReturn.supplier).session(session);
 
         // rollback
-        supplier.remainingBalance += oldReturn.totalAmount;
+        supplier.remainingBalance += oldReturn.totalReturnPrice;
 
         supplier.transactions = supplier.transactions.filter(
             t => t.deliveryId.toString() !== id

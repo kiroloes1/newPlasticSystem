@@ -1,0 +1,196 @@
+const Expense =require(`${__dirname}/../../models/expense`);
+const { getCashBox } = require(`${__dirname}/../../services/moneyBox`);
+const Transaction = require(`${__dirname}/../../models/TransactionBox`);
+const mongoose =require('mongoose');
+
+
+// create Expense
+exports.createExpense = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const userId = req.user.userId;
+    const { items } = req.body;
+
+    // 1. Create Expense
+    const expense = await Expense.create([{
+      items,
+      createdBy: userId,
+      updatedBy: userId,
+    }], { session });
+
+    const createdExpense = expense[0];
+
+    // 2. Get Cash Box
+    const box = await getCashBox(userId, session);
+
+    // 3. Create Transaction (only if items exist)
+    let transaction = null;
+
+    if (items && items.length > 0) {
+      transaction = await Transaction.create([{
+        moneyBoxId: box._id,
+        type: "expense",
+        items: items.map(item => ({
+          title: item.title,
+          category: "expense",
+          amount: item.amount
+        })),
+        expenseId: createdExpense._id,
+        note: "مصروفات خارجه من الخزنه",
+        totalAmount: (items || []).reduce((sum, i) => sum + i.amount, 0)
+      }], { session });
+
+      transaction = transaction[0];
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(201).json({
+      message: "Expense created successfully",
+      expense: createdExpense,
+      transaction
+    });
+
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// deleteExpense
+exports.deleteExpense = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const expense = await Expense.findById(req.params.id).session(session);
+
+    if (!expense) {
+      return res.status(404).json({ message: "Expense not found" });
+    }
+
+    // delete related transaction
+    await Transaction.deleteMany({ expenseId: expense._id }, { session });
+
+    await expense.deleteOne({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      message: "Expense deleted successfully"
+    });
+
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+
+exports.updateExpense = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const userId = req.user.userId;
+    const { items } = req.body;
+
+    // 1. Find Expense
+    const expense = await Expense.findById(req.params.id).session(session);
+
+    if (!expense) {
+      return res.status(404).json({
+        message: "Expense not found"
+      });
+    }
+
+    // 2. Update Expense data
+    if (items) {
+      expense.items = items.map(item => ({
+        title: item.title,
+        amount: item.amount,
+        note: item.note || ""
+      }));
+    }
+
+    expense.updatedBy = userId;
+
+    await expense.save({ session });
+
+    // 3. Rebuild Transaction items (system controlled)
+    const transactionItems = expense.items.map(item => ({
+      title: item.title,
+      amount: item.amount,
+      category: "expense" 
+    }));
+
+    const totalAmount = expense.items.reduce((sum, i) => sum + i.amount, 0);
+
+    // 4. Update Transaction linked to Expense
+    await Transaction.findOneAndUpdate(
+      { expenseId: expense._id },
+      {
+        items: transactionItems,
+        totalAmount,
+        note: "Updated expense transaction"
+      },
+      { session }
+    );
+
+    // 5. Commit
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      message: "Expense updated successfully",
+      expense
+    });
+
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+
+    res.status(500).json({
+      error: err.message
+    });
+  }
+};
+
+
+// getAllExpenses
+exports.getAllExpenses = async (req, res) => {
+  try {
+    const expenses = await Expense.find()
+      .populate('createdBy', 'username')
+      .populate('updatedBy', 'username')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(expenses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// getExpenseById
+exports.getExpenseById = async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.id)
+      .populate('createdBy', 'username')
+      .populate('updatedBy', 'username');
+
+    if (!expense) {
+      return res.status(404).json({ message: "Expense not found" });
+    }
+
+    res.status(200).json(expense);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

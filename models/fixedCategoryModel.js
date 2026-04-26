@@ -10,10 +10,6 @@ const fixedCategorySchema = new mongoose.Schema({
     pricePerWeight:{
       type:Number,
       
-    },
-    createdBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Admin'
     }
 }, { timestamps: true });
 

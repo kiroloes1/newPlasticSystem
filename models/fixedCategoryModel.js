@@ -17,4 +17,4 @@ const fixedCategorySchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-module.exports = mongoose.model('FixedCategory', fixedCategorySchema);
+module.exports = mongoose.model('Item', fixedCategorySchema);

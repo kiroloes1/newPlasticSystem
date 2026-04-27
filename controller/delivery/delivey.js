@@ -358,7 +358,7 @@ exports.updateDelivery = async (req, res) => {
 
         for (const p of payments){
             if(p.paymentMethod === "cash"){
-            const box = await getCashBox(userId, session);
+            const box = await getCashBox(adminId, session);
 
             await TransactionModel.create([{
             moneyBoxId: box._id,

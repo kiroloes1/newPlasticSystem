@@ -172,7 +172,7 @@ exports.createDelivery = async (req, res) => {
             items: [{
                 title:   " دفع فلوس للتاجر نقدي" + supplierExists.name,
                 category: "delivery",
-                amount: Number(p.paidAmount)-(Number(teaForWorkers)-Number(carPayment))
+                amount: Number(p.paidAmount)-(Number(teaForWorkers)+ Number(carPayment))
             },
             {
                 title:   " دفع فلوس شاي نقدي" + supplierExists.name,
@@ -367,7 +367,7 @@ exports.updateDelivery = async (req, res) => {
             items: [{
                 title:   " دفع فلوس للتاجر نقدي" + supplierExists.name,
                 category: "delivery",
-                amount: Number(p.paidAmount)-(Number(teaForWorkers)-Number(carPayment))
+                amount: Number(p.paidAmount)-(Number(teaForWorkers) + Number(carPayment))
             },
             {
                 title:   " دفع فلوس شاي نقدي" + supplierExists.name,

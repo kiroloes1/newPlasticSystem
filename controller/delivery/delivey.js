@@ -168,9 +168,9 @@ exports.createDelivery = async (req, res) => {
             await TransactionModel.create([{
             moneyBoxId: box._id,
             type: "expense",
-            note: note || "  دفع فلوس للتاجر نقدي بدون نولون وشاي " + supplierExists.name,
+            note: note || "  دفع فلوس للتاجر نقدي  " + supplierExists.name,
             items: [{
-                title:   " دفع فلوس للتاجر نقدي" + supplierExists.name,
+                title:   " دفع فلوس للتاجر نقدي بدون نولون وشاي" + supplierExists.name,
                 category: "delivery",
                 amount: Number(p.paidAmount)-(Number(teaForWorkers)+ Number(carPayment))
             },
@@ -363,9 +363,9 @@ exports.updateDelivery = async (req, res) => {
             await TransactionModel.create([{
             moneyBoxId: box._id,
             type: "expense",
-            note: note || "  دفع فلوس للتاجر نقدي بدون نولون وشاي " + supplierExists.name,
+            note: note || "  دفع فلوس للتاجر نقدي  " + supplierExists.name,
             items: [{
-                title:   " دفع فلوس للتاجر نقدي" + supplierExists.name,
+                title:   "   دفع فلوس للتاجر نقدي بدون نولون وشاي" + supplierExists.name,
                 category: "delivery",
                 amount: Number(p.paidAmount)-(Number(teaForWorkers) + Number(carPayment))
             },

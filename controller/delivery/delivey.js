@@ -115,7 +115,7 @@ exports.createDelivery = async (req, res) => {
 
         
         totalAmount -= teaForWorkers;
-        totalAmount += carPayment;
+        // totalAmount += carPayment;
 
      
 
@@ -168,12 +168,24 @@ exports.createDelivery = async (req, res) => {
             await TransactionModel.create([{
             moneyBoxId: box._id,
             type: "expense",
-            note: note || " دفع فلوس للتاجر نقدي" + supplierExists.name,
+            note: note || "  دفع فلوس للتاجر نقدي بدون نولون وشاي " + supplierExists.name,
             items: [{
                 title:   " دفع فلوس للتاجر نقدي" + supplierExists.name,
                 category: "delivery",
-                amount: Number(p.paidAmount)
-            }],
+                amount: Number(p.paidAmount)-(Number(teaForWorkers)-Number(carPayment))
+            },
+            {
+                title:   " دفع فلوس شاي نقدي" + supplierExists.name,
+                category: "teaForWorker",
+                amount: Number(teaForWorkers)
+            },
+            {
+                title:   " دفع فلوس نولون نقدي" + supplierExists.name,
+                category: "carPayment",
+                amount: Number(carPayment)
+            },
+        
+        ],
            supplierId: supplierExists._id,
            deliverId: delivery[0]._id
             
@@ -219,7 +231,7 @@ exports.updateDelivery = async (req, res) => {
             carPayment = 0,
             payment = [],
             notes,
-                note,  // to money box
+            note
         } = req.body;
 
         const payments = Array.isArray(payment) ? payment : [];
@@ -288,7 +300,7 @@ exports.updateDelivery = async (req, res) => {
         }
 
         totalAmount -= teaForWorkers;
-        totalAmount += carPayment;
+        // totalAmount += carPayment;
 
   
         // 3. PAYMENT CALCULATION
@@ -346,22 +358,33 @@ exports.updateDelivery = async (req, res) => {
 
         for (const p of payments){
             if(p.paymentMethod === "cash"){
+            const box = await getCashBox(userId, session);
 
-                const box = await getCashBox(adminId, session);
-
-                await TransactionModel.create([{
-                    moneyBoxId: box._id,
-                    type: "expense",
-                    note: note || "دفع نقدي للتاجر " + supplierDoc.name,
-                    items: [{
-                        title: "دفع نقدي للتاجر " + supplierDoc.name,
-                        category: "delivery",
-                        amount: Number(p.paidAmount)
-                    }],
-                    supplierId: supplierDoc._id,
-                    deliverId: id
-                }], { session });
-
+            await TransactionModel.create([{
+            moneyBoxId: box._id,
+            type: "expense",
+            note: note || "  دفع فلوس للتاجر نقدي بدون نولون وشاي " + supplierExists.name,
+            items: [{
+                title:   " دفع فلوس للتاجر نقدي" + supplierExists.name,
+                category: "delivery",
+                amount: Number(p.paidAmount)-(Number(teaForWorkers)-Number(carPayment))
+            },
+            {
+                title:   " دفع فلوس شاي نقدي" + supplierExists.name,
+                category: "teaForWorker",
+                amount: Number(teaForWorkers)
+            },
+            {
+                title:   " دفع فلوس نولون نقدي" + supplierExists.name,
+                category: "carPayment",
+                amount: Number(carPayment)
+            },
+        
+        ],
+           supplierId: supplierExists._id,
+           deliverId: delivery[0]._id
+            
+        }], { session });
             }
         }
 
@@ -505,7 +528,8 @@ exports.getDeliveryById = async (req, res) => {
         const delivery = await derliveryModel.findById(id
         ).populate("supplier", "name")
         .populate("receivedBy", "username email")
-        .populate("items.item", "name");
+        .populate("items.item", "name")
+        .lean();
 
         if (!delivery) {
             return res.status(404).json({ message: "النقلة غير موجودة" });

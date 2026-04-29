@@ -24,7 +24,7 @@ const supplierSchema = new mongoose.Schema({
        paidAmount: { type: Number, default: 0 },           
        paymentMethod:{
         type:String,
-        enum:["cash" , "wallet" ,"instapay" ,"bank"]
+        enum:["cash" , "wallet" ,"instapay" ,"bank" ,"work"]
        }
   }],   
 

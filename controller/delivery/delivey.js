@@ -382,7 +382,7 @@ exports.updateDelivery = async (req, res) => {
         
         ],
            supplierId: supplierDoc._id,
-           deliverId: id
+           deliverId: updated[0]._id
             
         }], { session });
             }

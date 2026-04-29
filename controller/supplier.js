@@ -130,6 +130,30 @@ exports.updateSupplier = async (req, res) => {
 };
 
 
+// DELTE 
+exports.deleteSupplier=async(req,res)=>{
+      const { id } = req.params;
+
+    if (!isValidObjectId(id))
+      return res.status(400).json({ message: "المعرف خطاء" });
+    try{
+
+      const supplier = await Supplier.findByIdAndDelete(id);
+
+      if (!supplier)
+      return res.status(404).json({ message: "هذا المورد غير موجود" });
+
+    res.status(200).json({
+      message: "تم حذف  بيانات المورد بنجاح",
+      data: supplier
+    });
+
+
+    }  catch (err) {
+        res.status(500).json({ message: err.message });
+      }
+}
+
 
 // ================= ADD DEBT =================
 exports.addDebt = async (req, res) => {

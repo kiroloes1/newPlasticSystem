@@ -26,6 +26,11 @@ router.post("/", supplierController.createNewSupplier);
 router.put("/:id", supplierController.updateSupplier);
 
 
+// delete supplier
+router.delete("/:id", supplierController.deleteSupplier);
+
+
+
 // ADD to supplier balance (debt)
 
 router.patch("/addDebt/:id", supplierController.addDebt);

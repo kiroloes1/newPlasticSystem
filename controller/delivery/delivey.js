@@ -5,6 +5,8 @@ const Item = require(`${__dirname}/../../models/fixedCategoryModel`);
 const TransactionModel=require(`${__dirname}/../../models/TransactionBox`);
 const { getCashBox } = require(`${__dirname}/../../services/moneyBox`);
 const mongoose = require('mongoose');
+const deliveryReturnMoedl=require(`${__dirname}/../../models/returnDelivery`)
+
 
 
 
@@ -593,14 +595,24 @@ exports.getDeliveryBySupplier = async (req, res) => {
         }
 
         // query
-        const deliveries = await derliveryModel.find(filter)
+        const deliverie = await derliveryModel.find(filter)
             .populate("supplier", "name remainingBalance")
             .populate("receivedBy", "username email")
             .populate("items.item", "name")
             .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
             .lean();
+
+        const returnDelivery=await deliveryReturnMoedl.find(filter)  
+             .populate("supplier", "name remainingBalance")
+            .populate("receivedBy", "username email")
+            .populate("items.item", "name")
+            .sort({ createdAt: -1 })
+            .lean(); 
+
+            const deliveries=[
+                ...deliverie,
+                ...returnDelivery
+            ]
 
         const total = await derliveryModel.countDocuments(filter);
 

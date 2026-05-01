@@ -13,6 +13,10 @@ router.post('/', expenseController.createExpense);
 // GET ALL
 router.get('/', expenseController.getAllExpenses);
 
+// get current
+router.get('/getCurrentExpenses', expenseController.getCurrentExpenses);
+
+
 // GET BY ID
 router.get('/:id', expenseController.getExpenseById);
 

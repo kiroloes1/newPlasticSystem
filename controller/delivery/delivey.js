@@ -40,7 +40,7 @@ exports.createDelivery = async (req, res) => {
         const payments = Array.isArray(payment) ? payment : [];
       
         for (const p of payments) {
-            if (!p.paymentMethod || p.paidAmount < 0) {
+            if (!p.paymentMethod  || p.paidAmount < 0) {
                 throw new Error("بيانات الدفع غير صحيحة");
             }
         }
@@ -172,7 +172,7 @@ exports.createDelivery = async (req, res) => {
              itemsUpdate.push(            {
                 title:   " دفع فلوس للتاجر نقدي بدون نولون وشاي" + supplierExists.name,
                 category: "delivery",
-                amount: Number(p.paidAmount)-(Number(teaForWorkers)+ Number(carPayment))
+                amount: Number(p.paidAmount)
             },)   
 
 
@@ -373,7 +373,7 @@ exports.updateDelivery = async (req, res) => {
              itemsUpdate.push(            {
                 title:   " دفع فلوس للتاجر نقدي بدون نولون وشاي" + supplierExists.name,
                 category: "delivery",
-                amount: Number(p.paidAmount)-(Number(teaForWorkers)+ Number(carPayment))
+                amount: Number(p.paidAmount)
             },)   
 
 

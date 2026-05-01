@@ -160,76 +160,47 @@ exports.createDelivery = async (req, res) => {
         });
 
         await supplierExists.save({ session });
-for (const p of payments) {
 
-  const box = await getCashBox(userId, session);
 
-  const teaAmount = Number(teaForWorkers) || 0;
-  const carAmount = Number(carPayment) || 0;
-  const supplierAmount = Number(p.paidAmount) || 0;
+ 
+        const itemsUpdate=[]
 
-  // ===============================
-  // 1. لو الدفع نقدي
-  // ===============================
-  if (p.paymentMethod === "cash") {
+        for (const p of payments){
+            if(p.paymentMethod === "cash"){
 
-    await TransactionModel.create([{
-      moneyBoxId: box._id,
-      type: "expense",
-      note: note || "دفع نقدي للتاجر " + supplierExists.name,
-      items: [
-        {
-          title: "دفع نقدي للتاجر " + supplierExists.name,
-          category: "supplier",
-          amount: supplierAmount - (teaAmount + carAmount)
-        },
-        {
-          title: "شاي عمال",
-          category: "teaForWorker",
-          amount: teaAmount
-        },
-        {
-          title: "نولون",
-          category: "carPayment",
-          amount: carAmount
+             
+             itemsUpdate.push(            {
+                title:   " دفع فلوس للتاجر نقدي بدون نولون وشاي" + supplierExists.name,
+                category: "delivery",
+                amount: Number(p.paidAmount)-(Number(teaForWorkers)+ Number(carPayment))
+            },)   
+
+
+            }
         }
-      ],
-      supplierId: supplierExists._id,
-      deliverId: delivery[0]._id
-    }], { session });
 
-  } else {
+        itemsUpdate.push(  
+            {
+                title:   " دفع فلوس شاي نقدي" + supplierExists.name,
+                category: "teaForWorker",
+                amount: Number(teaForWorkers)
+            },
+            {
+                title:   " دفع فلوس نولون نقدي" + supplierExists.name,
+                category: "carPayment",
+                amount: Number(carPayment)
+            },)
 
-    // ===============================
-    // 2. لو مش نقدي
-    // ===============================
-
-    // ❗ فقط الشاي + النولون من الخزنة
-    if (teaAmount > 0 || carAmount > 0) {
-
-      await TransactionModel.create([{
-        moneyBoxId: box._id,
-        type: "expense",
-        note: "مصروفات تشغيل (شاي + نولون) للتاجر " + supplierExists.name,
-        items: [
-          {
-            title: "شاي عمال",
-            category: "teaForWorker",
-            amount: teaAmount
-          },
-          {
-            title: "نولون",
-            category: "carPayment",
-            amount: carAmount
-          }
-        ],
-        supplierId: supplierExists._id,
-        deliverId: delivery[0]._id
-      }], { session });
-
-    }
-  }
-}
+        const box = await getCashBox(userId, session);
+          await TransactionModel.create([{
+            moneyBoxId: box._id,
+            type: "expense",
+            note: note || "  دفع فلوس للتاجر نقدي  " + supplierExists.name,
+            items: itemsUpdate || [],
+           supplierId: supplierExists._id,
+           deliverId: delivery[0]._id
+            
+        }], { session });
 
         await session.commitTransaction();
         session.endSession();
@@ -393,74 +364,44 @@ exports.updateDelivery = async (req, res) => {
             deliverId: id,
             type: "expense"
         }).session(session);
-for (const p of payments) {
+        const itemsUpdate=[]
 
-  const box = await getCashBox(adminId, session);
+        for (const p of payments){
+            if(p.paymentMethod === "cash"){
 
-  const teaAmount = Number(teaForWorkers) || 0;
-  const carAmount = Number(carPayment) || 0;
-  const supplierAmount = Number(p.paidAmount) || 0;
+             
+             itemsUpdate.push(            {
+                title:   " دفع فلوس للتاجر نقدي بدون نولون وشاي" + supplierExists.name,
+                category: "delivery",
+                amount: Number(p.paidAmount)-(Number(teaForWorkers)+ Number(carPayment))
+            },)   
 
 
-  // 1. لو الدفع نقدي → كل حاجة من الخزنة
-
-  if (p.paymentMethod === "cash") {
-
-    await TransactionModel.create([{
-      moneyBoxId: box._id,
-      type: "expense",
-      note: note || "دفع نقدي للتاجر " + supplierDoc.name,
-      items: [
-        {
-          title: "دفع للتاجر (بدون شاي ونولون) " + supplierDoc.name,
-          category: "delivery",
-          amount: supplierAmount - (teaAmount + carAmount)
-        },
-        {
-          title: "شاي عمال",
-          category: "teaForWorker",
-          amount: teaAmount
-        },
-        {
-          title: "نولون",
-          category: "carPayment",
-          amount: carAmount
+            }
         }
-      ],
-      supplierId: supplierDoc._id,
-      deliverId: updated[0]._id
-    }], { session });
 
-  } else {
+        itemsUpdate.push(  
+            {
+                title:   " دفع فلوس شاي نقدي" + supplierExists.name,
+                category: "teaForWorker",
+                amount: Number(teaForWorkers)
+            },
+            {
+                title:   " دفع فلوس نولون نقدي" + supplierExists.name,
+                category: "carPayment",
+                amount: Number(carPayment)
+            },)
 
-  
-    // 2. لو مش نقدي → فقط الشاي + النولون
-  
-    if (teaAmount > 0 || carAmount > 0) {
-
-      await TransactionModel.create([{
-        moneyBoxId: box._id,
-        type: "expense",
-        note: "مصروفات تشغيل (شاي + نولون) " + supplierDoc.name,
-        items: [
-          {
-            title: "شاي عمال",
-            category: "teaForWorker",
-            amount: teaAmount
-          },
-          {
-            title: "نولون",
-            category: "carPayment",
-            amount: carAmount
-          }
-        ],
-        supplierId: supplierDoc._id,
-        deliverId: updated[0]._id
-      }], { session });
-
-    }
-  }
-}
+        const box = await getCashBox(userId, session);
+          await TransactionModel.create([{
+            moneyBoxId: box._id,
+            type: "expense",
+            note: note || "  دفع فلوس للتاجر نقدي  " + supplierExists.name,
+            items: itemsUpdate || [],
+           supplierId: supplierExists._id,
+           deliverId: delivery[0]._id
+            
+        }], { session });
 
         await session.commitTransaction();
         session.endSession();

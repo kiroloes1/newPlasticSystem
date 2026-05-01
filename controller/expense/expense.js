@@ -83,6 +83,37 @@ exports.createExpense = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+exports.deleteExpense = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const expense = await Expense.findById(req.params.id).session(session);
+
+    if (!expense) {
+      return res.status(404).json({ message: "Expense not found" });
+    }
+
+    // delete related transaction
+    await Transaction.deleteMany({ expenseId: expense._id }, { session });
+
+    await expense.deleteOne({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      message: "Expense deleted successfully"
+    });
+
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 
 exports.updateExpense = async (req, res) => {
   const session = await mongoose.startSession();
@@ -116,7 +147,7 @@ exports.updateExpense = async (req, res) => {
 
     // 3. Rebuild Transaction items (system controlled)
     const transactionItems = expense.items.map(item => ({
-      title: item.title + " | "  + item.note,
+      title: item.title,
       amount: item.amount,
       category: "expense" 
     }));

@@ -40,7 +40,7 @@ exports.createDelivery = async (req, res) => {
         const payments = Array.isArray(payment) ? payment : [];
       
         for (const p of payments) {
-            if (!p.paymentMethod || !p.paidAmount || p.paidAmount < 0) {
+            if (!p.paymentMethod || p.paidAmount < 0) {
                 throw new Error("بيانات الدفع غير صحيحة");
             }
         }

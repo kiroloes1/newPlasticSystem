@@ -194,3 +194,31 @@ exports.getExpenseById = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+// get current Expenses
+exports.getCurrentExpenses = async (req, res) => {
+ try {
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const expenses = await Expense.find({
+      createdAt: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+    })
+      .populate('createdBy', 'username')
+      .populate('updatedBy', 'username')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(expenses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

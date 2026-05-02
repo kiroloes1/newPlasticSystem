@@ -392,7 +392,7 @@ exports.updateDelivery = async (req, res) => {
                 amount: Number(carPayment)
             },)
 
-        const box = await getCashBox(userId, session);
+        const box = await getCashBox(adminId, session);
           await TransactionModel.create([{
             moneyBoxId: box._id,
             type: "expense",

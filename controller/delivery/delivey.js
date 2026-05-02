@@ -399,7 +399,7 @@ exports.updateDelivery = async (req, res) => {
             note: note || "  دفع فلوس للتاجر نقدي  " + supplierDoc.name,
             items: itemsUpdate || [],
            supplierId: supplierDoc._id,
-           deliverId: delivery[0]._id
+           deliverId: updated[0]._id
             
         }], { session });
 

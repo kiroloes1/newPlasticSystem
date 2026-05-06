@@ -11,6 +11,12 @@ exports.createReturnDelivery = async (req, res) => {
     session.startTransaction();
 
     try {
+                const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const tomorrow = new Date();
+        tomorrow.setHours(23, 59, 59, 999);
+
         const { supplier, items, notes } = req.body;
         const adminId = req.user.userId;
 
@@ -20,6 +26,18 @@ exports.createReturnDelivery = async (req, res) => {
 
         const supplierDoc = await Supplier.findById(supplier).session(session);
         if (!supplierDoc) throw new Error("المورد غير موجود");
+
+
+                const lastDelivery = await ReturnDelivery
+        .findOne({
+            deliveryDate: { $gte: today, $lte: tomorrow }
+        })
+        .sort({ delveryNumber: -1 })
+        .session(session);
+
+        const deliveryNumber = lastDelivery
+        ? lastDelivery.delveryNumber + 1
+        : 1;
 
         let totalAmount = 0;
 
@@ -43,6 +61,7 @@ exports.createReturnDelivery = async (req, res) => {
         }
 
         const returnDelivery = await ReturnDelivery.create([{
+            delveryNumber:deliveryNumber,
             supplier,
             receivedBy: adminId,
             items,

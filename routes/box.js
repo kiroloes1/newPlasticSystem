@@ -14,7 +14,7 @@ router.use(authorizationMiddleware.role('superadmin', 'manager'));
 /* Transactions */
 router.post("/transactions", boxController.addTransaction);
 router.get("/transactions", boxController.getTransactions);
-router.get("/transactions/All", boxController.getAllTransactions);
+router.get("/transaction/All", boxController.getAllTransactions);
 
 router.get("/transactions/:id", boxController.getTransactionById);
 router.patch("/transactions/:id", boxController.updateTransaction);

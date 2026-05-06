@@ -47,7 +47,8 @@ exports.createReturnDelivery = async (req, res) => {
             receivedBy: adminId,
             items,
             notes,
-            totalAmount
+            totalAmount,
+            oldBalance:supplierDoc.remainingBalance
         }], { session });
 
         supplierDoc.remainingBalance -= totalAmount;

@@ -219,3 +219,38 @@ exports.updateTransaction = async (req, res) => {
         return res.status(500).json({ message: err.message });
     }
 };
+
+// get transactions
+exports.getAllTransactions = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { type, from, to } = req.query;
+
+        const box = await getCashBox(userId);
+
+        // moneyBoxId: box._id
+        let filter = {  };
+
+        if (type) filter.type = type;
+
+        if (from || to) {
+            filter.date = {};
+            if (from) filter.date.$gte = new Date(from);
+            if (to) filter.date.$lte = new Date(to);
+        }
+
+        const transactions = await Transaction.find(filter)
+            .sort({ date: -1 })
+            .lean();
+
+        return res.status(200).json({
+            count: transactions.length,
+            transactions
+        });
+
+    } catch (err) {
+        return res.status(500).json({
+            message: err.message
+        });
+    }
+};

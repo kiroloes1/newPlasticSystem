@@ -245,7 +245,7 @@ exports.getReturnById = async (req, res) => {
         const { id } = req.params;
 
         const data = await ReturnDelivery.findById(id)
-            .populate("supplier", "name")
+            .populate("supplier", "name remainingBalance")
             .populate("receivedBy", "username")
             .populate("items.item", "name");
 

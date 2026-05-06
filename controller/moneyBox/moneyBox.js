@@ -241,6 +241,7 @@ exports.getAllTransactions = async (req, res) => {
 
         const transactions = await Transaction.find(filter)
             .sort({ date: -1 })
+            .populate("supplierId" ,"name phone")
             .lean();
 
         return res.status(200).json({

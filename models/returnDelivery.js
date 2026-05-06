@@ -31,7 +31,7 @@ const ReturnDeliveySchema = new mongoose.Schema({
     notes: { type: String },
      totalAmount: { type: Number, default: 0 }, 
 
-    
+      oldBalance: { type: Number, default: 0 }, 
     
 }, { timestamps: true });
 

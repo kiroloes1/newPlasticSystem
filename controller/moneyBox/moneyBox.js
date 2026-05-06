@@ -103,8 +103,9 @@ exports.getTransactions = async (req, res) => {
             if (to) filter.date.$lte = new Date(to);
         }
 
-        const transactions = await Transaction.find(filter)
-            .sort({ date: -1 });
+        const transactions = await Transaction.find(filter,{type:1 ,totalAmount:1 ,date:1 })
+            .sort({ date: -1 })
+            .lean();
 
         return res.status(200).json({
             count: transactions.length,

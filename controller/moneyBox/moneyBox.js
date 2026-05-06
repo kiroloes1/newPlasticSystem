@@ -132,7 +132,7 @@ exports.getTransactionById = async (req, res) => {
         const transaction = await Transaction.findOne({
             _id: id
             // moneyBoxId: box._id
-        });
+        }).populate("supplierId", "name")
 
         if (!transaction) {
             return res.status(404).json({

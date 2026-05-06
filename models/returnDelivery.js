@@ -19,7 +19,7 @@ const deliveryItemSchema = new mongoose.Schema({
 
 
 const ReturnDeliveySchema = new mongoose.Schema({
-  delveryNumber: { type: Number, required: true },
+  delveryNumber: { type: Number },
   deliveryDate: { type: Date, default: Date.now },
   receivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },  
     supplier:{

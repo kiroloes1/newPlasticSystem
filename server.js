@@ -21,7 +21,9 @@ const BoxRoute = require(`${__dirname}/routes/box`);
 const itemRoute = require(`${__dirname}/routes/delivery/items`);
 const expenceRoute= require(`${__dirname}/routes/expense`)
 const deliveryRoutes =require(`${__dirname}/routes/delivery/delivery`)
-const ReturnDeliveryRoute=require(`${__dirname}/routes/delivery/return`)
+const ReturnDeliveryRoute=require(`${__dirname}/routes/delivery/return`);
+const reports=require(`${__dirname}/routes/reports`);
+
 
 config.connectDB(process.env.DATABASE);
 
@@ -40,6 +42,8 @@ app.use('/v1/item',itemRoute);
 app.use('/v1/expense',expenceRoute);
 app.use("/v1/delivery", deliveryRoutes);
 app.use("/v1/ReturnDelivery", ReturnDeliveryRoute);
+app.use("/v1/reports", reports);
+
 
 
 

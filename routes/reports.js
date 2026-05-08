@@ -17,6 +17,7 @@ router.use(authorizationMiddleware.role('superadmin', 'manager'));
 router.get("/expenses", expenses.getExpenseReport );
 router.get("/suppliers", suppliers.getSuppliersReport );
 router.get("/delivey", delivey.getDeliveriesReport );
+router.get("/items", delivey.getItemsTotalWeights);
 router.get("/returnDelivery", returnDelivery.getReturnReport);
 
 

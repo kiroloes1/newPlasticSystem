@@ -21,7 +21,7 @@ const oauth2Client = new google.auth.OAuth2(
 /* =========================
    1. LOGIN GOOGLE
 ========================= */
-router.get("/auth/google" ,authorizationMiddleware.role('superadmin', 'manager') ,(req, res) => {
+router.get("/auth/google" ,authMiddleware.protected,authorizationMiddleware.role('superadmin', 'manager') ,(req, res) => {
   const url = oauth2Client.generateAuthUrl({
     access_type: "offline",
     scope: ["https://www.googleapis.com/auth/drive.file"],

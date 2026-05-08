@@ -44,67 +44,63 @@ exports.getReturnReport = async (req, res) => {
       };
     }
 
-    const report = await ReturnDelivery.aggregate([
+const report = await ReturnDelivery.aggregate([
 
-      // 1. filter by date
-      { $match: dateMatch },
+  { $match: dateMatch },
 
-      // 2. unwind items
-      { $unwind: "$items" },
+  { $unwind: "$items" },
 
-      // 3. unwind batches
-      { $unwind: "$items.batches" },
+  { $unwind: "$items.batches" },
 
-      // 4. group by item (product level)
-      {
-        $group: {
-          _id: {
-            returnId: "$_id",
-            itemName: "$items.name"
-          },
+  {
+    $lookup: {
+      from: "items", // اسم collection في MongoDB (مش model name)
+      localField: "items.item",
+      foreignField: "_id",
+      as: "itemData"
+    }
+  },
 
-          totalWeight: { $sum: "$items.batches.weight" },
-          count: { $sum: 1 },
-          totalAmount: { $first: "$totalAmount" }
-        }
-      },
+  {
+    $unwind: {
+      path: "$itemData",
+      preserveNullAndEmptyArrays: true
+    }
+  },
 
-      // 5. group per return document
-      {
-        $group: {
-          _id: "$_id.returnId",
+  {
+    $group: {
+      _id: "$items.item",
 
-          totalAmount: { $first: "$totalAmount" },
-          itemsCount: { $sum: "$count" },
-          totalWeight: { $sum: "$totalWeight" },
+      itemName: { $first: "$itemData.name" },
 
-          items: {
-            $push: {
-              name: "$_id.itemName",
-              weight: "$totalWeight",
-              count: "$count"
-            }
-          }
-        }
-      },
+      totalWeight: { $sum: "$items.batches.weight" },
 
-      // 6. final summary
-      {
-        $group: {
-          _id: null,
+      totalQuantity: { $sum: "$items.batches.quantity" },
 
-          totalReturns: { $sum: 1 },
-          totalReturnAmount: { $sum: "$totalAmount" },
-          totalReturnWeight: { $sum: "$totalWeight" },
-          totalItems: { $sum: "$itemsCount" },
+      totalReturnPrice: { $sum: "$items.totalReturnPrice" }
+    }
+  },
 
-          products: {
-            $push: "$items"
-          }
+  {
+    $group: {
+      _id: null,
+
+      totalReturns: { $sum: 1 },
+      totalWeight: { $sum: "$totalWeight" },
+      totalItems: { $sum: "$totalQuantity" },
+
+      items: {
+        $push: {
+          name: "$itemName",
+          weight: "$totalWeight",
+          quantity: "$totalQuantity"
         }
       }
+    }
+  }
 
-    ]);
+]);
 
     res.json({
       success: true,

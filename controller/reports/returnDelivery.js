@@ -1,10 +1,8 @@
-const ReturnDelivery = require(`../../models/returnDelivery`);
+const ReturnDelivery = require(`${__dirname}/../../models/returnDelivery`);
 
 exports.getReturnReport = async (req, res) => {
   try {
-
     const { filter, startDate, endDate } = req.query;
-
     const now = new Date();
 
     let dateMatch = {};
@@ -12,10 +10,10 @@ exports.getReturnReport = async (req, res) => {
     // DAILY
     if (filter === "daily") {
       const start = new Date();
-      start.setHours(0,0,0,0);
+      start.setHours(0, 0, 0, 0);
 
       const end = new Date();
-      end.setHours(23,59,59,999);
+      end.setHours(23, 59, 59, 999);
 
       dateMatch = { deliveryDate: { $gte: start, $lte: end } };
     }
@@ -23,7 +21,7 @@ exports.getReturnReport = async (req, res) => {
     // MONTHLY
     else if (filter === "monthly") {
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      const end = new Date(now.getFullYear(), now.getMonth()+1, 0);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
       dateMatch = { deliveryDate: { $gte: start, $lte: end } };
     }
@@ -57,37 +55,52 @@ exports.getReturnReport = async (req, res) => {
       // 3. unwind batches
       { $unwind: "$items.batches" },
 
-      // 4. group per return delivery
+      // 4. group by item (product level)
       {
         $group: {
+          _id: {
+            returnId: "$_id",
+            itemName: "$items.name"
+          },
 
-          _id: "$_id",
-
-          totalAmount: { $first: "$totalAmount" },
-
-          itemsCount: { $sum: 1 },
-
-          totalWeight: {
-            $sum: "$items.batches.weight"
-          }
-
+          totalWeight: { $sum: "$items.batches.weight" },
+          count: { $sum: 1 },
+          totalAmount: { $first: "$totalAmount" }
         }
       },
 
-      // 5. final aggregation
+      // 5. group per return document
       {
         $group: {
+          _id: "$_id.returnId",
 
+          totalAmount: { $first: "$totalAmount" },
+          itemsCount: { $sum: "$count" },
+          totalWeight: { $sum: "$totalWeight" },
+
+          items: {
+            $push: {
+              name: "$_id.itemName",
+              weight: "$totalWeight",
+              count: "$count"
+            }
+          }
+        }
+      },
+
+      // 6. final summary
+      {
+        $group: {
           _id: null,
 
           totalReturns: { $sum: 1 },
-
           totalReturnAmount: { $sum: "$totalAmount" },
-
           totalReturnWeight: { $sum: "$totalWeight" },
+          totalItems: { $sum: "$itemsCount" },
 
-          totalItems: { $sum: "$itemsCount" }
-
+          products: {
+            $push: "$items"
+          }
         }
       }
 
@@ -95,7 +108,13 @@ exports.getReturnReport = async (req, res) => {
 
     res.json({
       success: true,
-      report: report[0] || {}
+      report: report[0] || {
+        totalReturns: 0,
+        totalReturnAmount: 0,
+        totalReturnWeight: 0,
+        totalItems: 0,
+        products: []
+      }
     });
 
   } catch (err) {

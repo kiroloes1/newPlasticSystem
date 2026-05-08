@@ -6,7 +6,7 @@ const expenses=require(`../controller/reports/expense`);
 const suppliers=require(`../controller/reports/suppliers`);
 const delivey=require(`../controller/reports/delivey`);
 const returnDelivery=require(`../controller/reports/returnDelivery`);
-
+const dashboard=require(`../controller/dashboard/dashboard`);
 
 
 // protected routes
@@ -19,6 +19,7 @@ router.get("/suppliers", suppliers.getSuppliersReport );
 router.get("/delivey", delivey.getDeliveriesReport );
 router.get("/items", delivey.getItemsTotalWeights);
 router.get("/returnDelivery", returnDelivery.getReturnReport);
+router.get("/dashboard", dashboard.getDashboard);
 
 
 

@@ -1,67 +1,40 @@
-const Supplier = require(`${__dirname}/../../models/supplier`);
+const Supplier = require("../../models/supplier");
 
-exports.getSuppliersReport = async (req, res) => {
+exports.getSupplierFinanceReport = async (req, res) => {
   try {
 
-    let { filter, startDate, endDate } = req.query;
-
-    let dateFilter = {};
+    const { filter, startDate, endDate } = req.query;
 
     const now = new Date();
 
-    // Daily
-    if (filter === "daily") {
+    let dateMatch = {};
 
+    if (filter === "daily") {
       const start = new Date();
-      start.setHours(0, 0, 0, 0);
+      start.setHours(0,0,0,0);
 
       const end = new Date();
-      end.setHours(23, 59, 59, 999);
+      end.setHours(23,59,59,999);
 
-      dateFilter = {
-        "transactions.date": {
-          $gte: start,
-          $lte: end
-        }
-      };
+      dateMatch = { "transactions.date": { $gte: start, $lte: end } };
     }
 
-    // Monthly
     else if (filter === "monthly") {
-
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth()+1, 0);
 
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      end.setHours(23, 59, 59, 999);
-
-      dateFilter = {
-        "transactions.date": {
-          $gte: start,
-          $lte: end
-        }
-      };
+      dateMatch = { "transactions.date": { $gte: start, $lte: end } };
     }
 
-    // Yearly
     else if (filter === "yearly") {
-
       const start = new Date(now.getFullYear(), 0, 1);
-
       const end = new Date(now.getFullYear(), 11, 31);
-      end.setHours(23, 59, 59, 999);
 
-      dateFilter = {
-        "transactions.date": {
-          $gte: start,
-          $lte: end
-        }
-      };
+      dateMatch = { "transactions.date": { $gte: start, $lte: end } };
     }
 
-    // Custom Range
-    else if (filter === "custom" && startDate && endDate) {
-
-      dateFilter = {
+    else if (filter === "custom") {
+      dateMatch = {
         "transactions.date": {
           $gte: new Date(startDate),
           $lte: new Date(endDate)
@@ -71,95 +44,180 @@ exports.getSuppliersReport = async (req, res) => {
 
     const report = await Supplier.aggregate([
 
-  
-      {
-        $unwind: "$transactions"
-      },
+      // 1. unwind transactions
+      { $unwind: "$transactions" },
 
+      // 2. filter by date
+      { $match: dateMatch },
 
-      {
-        $match: dateFilter
-      },
-
-
+      // 3. group per supplier
       {
         $group: {
 
           _id: "$_id",
 
-          supplierName: {
-            $first: "$name"
+          name: { $first: "$name" },
+
+          phone: { $first: "$phone" },
+
+          // total purchases
+          totalPurchases: {
+            $sum: "$transactions.totalAmount"
           },
 
-          phone: {
-            $first: "$phone"
-          },
-
-
-          totalDeliveriesAmount: {
-            $sum: {
-              $cond: [
-                { $eq: ["$transactions.type", "delivery"] },
-                "$transactions.totalAmount",
-                0
-              ]
-            }
-          },
-
+          // total paid
           totalPaid: {
             $sum: "$transactions.paid"
           },
 
-          totalRemaining: {
-            $first: "remainingBalance"
-          },
+          // payment breakdown
+          payments: { $push: "$transactions.payment" },
 
+          // ❗ IMPORTANT: real current debt (from supplier field)
+          currentDebt: { $first: "$remainingBalance" }
 
-          deliveriesCount: {
-            $sum: {
-              $cond: [
-                { $eq: ["$transactions.type", "delivery"] },
-                1,
-                0
-              ]
+        }
+      },
+
+      // 4. payment breakdown
+      {
+        $project: {
+
+          name: 1,
+          phone: 1,
+          totalPurchases: 1,
+          totalPaid: 1,
+
+          currentDebt: 1,
+
+          cash: {
+            $reduce: {
+              input: "$payments",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  {
+                    $sum: {
+                      $map: {
+                        input: "$$this",
+                        as: "p",
+                        in: {
+                          $cond: [
+                            { $eq: ["$$p.paymentMethod", "cash"] },
+                            "$$p.paidAmount",
+                            0
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
             }
           },
 
+          wallet: {
+            $reduce: {
+              input: "$payments",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  {
+                    $sum: {
+                      $map: {
+                        input: "$$this",
+                        as: "p",
+                        in: {
+                          $cond: [
+                            { $eq: ["$$p.paymentMethod", "wallet"] },
+                            "$$p.paidAmount",
+                            0
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
 
-          returnsCount: {
-            $sum: {
-              $cond: [
-                { $eq: ["$transactions.type", "return"] },
-                1,
-                0
-              ]
+          instapay: {
+            $reduce: {
+              input: "$payments",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  {
+                    $sum: {
+                      $map: {
+                        input: "$$this",
+                        as: "p",
+                        in: {
+                          $cond: [
+                            { $eq: ["$$p.paymentMethod", "instapay"] },
+                            "$$p.paidAmount",
+                            0
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+
+          bank: {
+            $reduce: {
+              input: "$payments",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  {
+                    $sum: {
+                      $map: {
+                        input: "$$this",
+                        as: "p",
+                        in: {
+                          $cond: [
+                            { $eq: ["$$p.paymentMethod", "bank"] },
+                            "$$p.paidAmount",
+                            0
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
             }
           }
 
         }
       },
 
-
+      // 5. sort by debt (most important)
       {
-        $sort: {
-          totalDeliveriesAmount: -1
-        }
+        $sort: { currentDebt: -1 }
       }
 
     ]);
 
-    res.status(200).json({
+    res.json({
       success: true,
       count: report.length,
       report
     });
 
-  } catch (error) {
-
+  } catch (err) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: err.message
     });
-
   }
 };

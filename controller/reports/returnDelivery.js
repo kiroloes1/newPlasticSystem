@@ -4,7 +4,6 @@ exports.getReturnReport = async (req, res) => {
   try {
     const { filter, startDate, endDate } = req.query;
     const now = new Date();
-    
 
     let dateMatch = {};
 
@@ -55,7 +54,7 @@ const report = await ReturnDelivery.aggregate([
 
   {
     $lookup: {
-      from: "items", // اسم collection في MongoDB (مش model name)
+      from: "Item", // اسم collection في MongoDB (مش model name)
       localField: "items.item",
       foreignField: "_id",
       as: "itemData"
@@ -95,7 +94,8 @@ const report = await ReturnDelivery.aggregate([
         $push: {
           name: "$itemName",
           weight: "$totalWeight",
-          quantity: "$totalQuantity"
+          quantity: "$totalQuantity",
+          totalReturnPrice:"$totalReturnPrice"
         }
       }
     }

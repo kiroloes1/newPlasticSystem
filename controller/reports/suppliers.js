@@ -1,7 +1,7 @@
 const Supplier = require(`${__dirname}/../../models/supplier`);
 
 
-exports.getSupplierFinanceReport = async (req, res) => {
+exports.getSuppliersReport = async (req, res) => {
   try {
 
     const { filter, startDate, endDate } = req.query;

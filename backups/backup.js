@@ -5,7 +5,12 @@ const fs = require("fs");
 const path = require("path");
 const { google } = require("googleapis");
 const cron = require("node-cron");
-require('dotenv').config()
+require('dotenv').config();
+const authorizationMiddleware = require(`${__dirname}/../middlewares/authorization`);
+const authMiddleware = require(`${__dirname}/../middlewares/authMiddleware`);
+
+// protected routes
+
 
 const oauth2Client = new google.auth.OAuth2(
    process.env.GOOGLE_CLIENT_ID ,
@@ -16,7 +21,7 @@ const oauth2Client = new google.auth.OAuth2(
 /* =========================
    1. LOGIN GOOGLE
 ========================= */
-router.get("/auth/google", (req, res) => {
+router.get("/auth/google" ,authorizationMiddleware.role('superadmin', 'manager') ,(req, res) => {
   const url = oauth2Client.generateAuthUrl({
     access_type: "offline",
     scope: ["https://www.googleapis.com/auth/drive.file"],
@@ -136,15 +141,6 @@ async function createBackupManual() {
 
 
 
-router.get("/backup", async (req, res) => {
-  try {
-    await createBackup();
-    res.json({ success: true, message: "Backup done ✔" });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
 
 /* =========================
    4. AUTO BACKUP (DAILY)
@@ -159,8 +155,20 @@ cron.schedule("0 16 * * *", async () => {
   }
 });
 
+// protected routes
+router.use(authMiddleware.protected);
+
+router.use(authorizationMiddleware.role('superadmin', 'manager')); 
 
 
+router.get("/backup", async (req, res) => {
+  try {
+    await createBackup();
+    res.json({ success: true, message: "Backup done ✔" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 
 router.get("/backupMaual", async (req, res) => {
@@ -171,6 +179,9 @@ router.get("/backupMaual", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+
+
 
 
 module.exports = router;

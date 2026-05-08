@@ -1,4 +1,5 @@
-const Supplier = require("../../models/supplier");
+const Supplier = require(`${__dirname}/../../models/supplier`);
+
 
 exports.getSupplierFinanceReport = async (req, res) => {
   try {

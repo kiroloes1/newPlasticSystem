@@ -1,4 +1,4 @@
-const ReturnDelivery = require(`${__dirname}/../../models/returnDelivery`);
+const ReturnDelivery = require(`../../models/returnDelivery`);
 
 exports.getReturnReport = async (req, res) => {
   try {
@@ -7,7 +7,7 @@ exports.getReturnReport = async (req, res) => {
 
     let dateMatch = {};
 
-    // DAILY
+    // DATE FILTERS
     if (filter === "daily") {
       const start = new Date();
       start.setHours(0, 0, 0, 0);
@@ -18,7 +18,6 @@ exports.getReturnReport = async (req, res) => {
       dateMatch = { deliveryDate: { $gte: start, $lte: end } };
     }
 
-    // MONTHLY
     else if (filter === "monthly") {
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
       const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -26,7 +25,6 @@ exports.getReturnReport = async (req, res) => {
       dateMatch = { deliveryDate: { $gte: start, $lte: end } };
     }
 
-    // YEARLY
     else if (filter === "yearly") {
       const start = new Date(now.getFullYear(), 0, 1);
       const end = new Date(now.getFullYear(), 11, 31);
@@ -34,7 +32,6 @@ exports.getReturnReport = async (req, res) => {
       dateMatch = { deliveryDate: { $gte: start, $lte: end } };
     }
 
-    // CUSTOM
     else if (filter === "custom") {
       dateMatch = {
         deliveryDate: {
@@ -46,60 +43,66 @@ exports.getReturnReport = async (req, res) => {
 
     const report = await ReturnDelivery.aggregate([
 
-      // 1. filter by date
       { $match: dateMatch },
 
-      // 2. unwind items
+      // flatten items
       { $unwind: "$items" },
 
-      // 3. unwind batches
+      // flatten batches
       { $unwind: "$items.batches" },
 
-      // 4. group by item (product level)
+      // lookup item details
       {
-        $group: {
-          _id: {
-            returnId: "$_id",
-            itemName: "$items.name"
-          },
-
-          totalWeight: { $sum: "$items.batches.weight" },
-          count: { $sum: 1 },
-          totalAmount: { $first: "$totalAmount" }
+        $lookup: {
+          from: "items",
+          localField: "items.item",
+          foreignField: "_id",
+          as: "itemInfo"
         }
       },
 
-      // 5. group per return document
+      { $unwind: "$itemInfo" },
+
+      // GROUP BY ITEM
       {
         $group: {
-          _id: "$_id.returnId",
+          _id: "$items.item",
 
-          totalAmount: { $first: "$totalAmount" },
-          itemsCount: { $sum: "$count" },
-          totalWeight: { $sum: "$totalWeight" },
+          name: { $first: "$itemInfo.name" },
 
-          items: {
-            $push: {
-              name: "$_id.itemName",
-              weight: "$totalWeight",
-              count: "$count"
+          totalWeight: { $sum: "$items.batches.weight" },
+
+          totalQuantity: { $sum: "$items.batches.quantity" },
+
+          totalValue: {
+            $sum: {
+              $multiply: [
+                "$items.batches.weight",
+                "$itemInfo.pricePerWeight"
+              ]
             }
           }
         }
       },
 
-      // 6. final summary
+      // FINAL GROUP (SUMMARY + ITEMS)
       {
         $group: {
           _id: null,
 
-          totalReturns: { $sum: 1 },
-          totalReturnAmount: { $sum: "$totalAmount" },
-          totalReturnWeight: { $sum: "$totalWeight" },
-          totalItems: { $sum: "$itemsCount" },
+          totalItems: { $sum: 1 },
 
-          products: {
-            $push: "$items"
+          totalWeight: { $sum: "$totalWeight" },
+
+          totalValue: { $sum: "$totalValue" },
+
+          items: {
+            $push: {
+              name: "$name",
+              weight: "$totalWeight",
+              quantity: "$totalQuantity",
+              value: "$totalValue"
+            }
           }
         }
       }
@@ -109,11 +112,10 @@ exports.getReturnReport = async (req, res) => {
     res.json({
       success: true,
       report: report[0] || {
-        totalReturns: 0,
-        totalReturnAmount: 0,
-        totalReturnWeight: 0,
         totalItems: 0,
-        products: []
+        totalWeight: 0,
+        totalValue: 0,
+        items: []
       }
     });
 

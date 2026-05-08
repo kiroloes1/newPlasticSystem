@@ -199,3 +199,75 @@ exports.getDeliveriesReport = async (req, res) => {
     });
   }
 };
+
+
+
+// controllers/delivery.controller.js
+
+exports.getItemsTotalWeights = async (req, res) => {
+  try {
+
+    const result = await Deliver.aggregate([
+
+    
+      { $unwind: "$items" },
+
+     
+      { $unwind: "$items.batches" },
+
+    
+      {
+        $group: {
+          _id: "$items.item",
+
+          totalWeight: {
+            $sum: "$items.batches.weight"
+          },
+
+          totalQuantity: {
+            $sum: "$items.batches.quantity"
+          }
+        }
+      },
+
+ 
+      {
+        $lookup: {
+          from: "items",
+          localField: "_id",
+          foreignField: "_id",
+          as: "item"
+        }
+      },
+
+      { $unwind: "$item" },
+
+      
+      {
+        $project: {
+          _id: 0,
+          itemId: "$item._id",
+          itemName: "$item.name",
+          totalWeight: 1,
+          totalQuantity: 1
+        }
+      }
+
+    ]);
+
+    res.status(200).json({
+      success: true,
+      count: result.length,
+      data: result
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+};
+

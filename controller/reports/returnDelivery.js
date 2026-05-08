@@ -55,7 +55,7 @@ const report = await ReturnDelivery.aggregate([
 
   {
     $lookup: {
-      from: "Item", // اسم collection في MongoDB (مش model name)
+      from: "items", // اسم collection في MongoDB (مش model name)
       localField: "items.item",
       foreignField: "_id",
       as: "itemData"

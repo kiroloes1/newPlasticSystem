@@ -17,26 +17,26 @@ exports.getSuppliersReport = async (req, res) => {
       const end = new Date();
       end.setHours(23, 59, 59, 999);
 
-      dateMatch = { "transactions.date": { $gte: start, $lte: end } };
+      dateMatch = { "paymentHistory.date": { $gte: start, $lte: end } };
     }
 
     else if (filter === "monthly") {
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
       const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-      dateMatch = { "transactions.date": { $gte: start, $lte: end } };
+      dateMatch = { "paymentHistory.date": { $gte: start, $lte: end } };
     }
 
     else if (filter === "yearly") {
       const start = new Date(now.getFullYear(), 0, 1);
       const end = new Date(now.getFullYear(), 11, 31);
 
-      dateMatch = { "transactions.date": { $gte: start, $lte: end } };
+      dateMatch = { "paymentHistory.date": { $gte: start, $lte: end } };
     }
 
     else if (filter === "custom") {
       dateMatch = {
-        "transactions.date": {
+        "paymentHistory.date": {
           $gte: new Date(startDate),
           $lte: new Date(endDate)
         }
@@ -46,7 +46,7 @@ exports.getSuppliersReport = async (req, res) => {
     // ================= AGGREGATION =================
     const report = await Supplier.aggregate([
 
-      { $unwind: "$transactions" },
+      { $unwind: "$paymentHistory" },
 
       { $match: dateMatch },
 
@@ -57,43 +57,30 @@ exports.getSuppliersReport = async (req, res) => {
           name: { $first: "$name" },
           phone: { $first: "$phone" },
 
-          // ================= PURCHASES =================
-          totalPurchases: {
+          // ================= TOTAL PAYMENTS =================
+          totalPayments: {
             $sum: {
               $cond: [
-                { $eq: ["$transactions.type", "delivery"] },
-                "$transactions.totalAmount",
+                { $eq: ["$paymentHistory.type", "payment"] },
+                "$paymentHistory.amount",
                 0
               ]
             }
           },
 
-          // ================= RETURNS =================
-          totalReturns: {
+          // ================= TOTAL DEBT =================
+          totalDebt: {
             $sum: {
               $cond: [
-                { $eq: ["$transactions.type", "return"] },
-                "$transactions.totalAmount",
+                { $eq: ["$paymentHistory.type", "debt"] },
+                "$paymentHistory.amount",
                 0
               ]
             }
           },
 
-          // ================= PAID =================
-          totalPaid: {
-            $sum: "$transactions.paid"
-          },
-
-          // ================= PAYMENT HISTORY =================
-          payments: { $push: "$transactions.payment" },
-
-          // ================= DEBT FROM TRANSACTIONS =================
-          totalDebtFromTransactions: {
-            $sum: "$transactions.remainingBalance"
-          },
-
-          // ================= CURRENT REAL DEBT =================
-          currentDebt: { $first: "$remainingBalance" }
+          // ================= ALL PAYMENTS =================
+          payments: { $push: "$paymentHistory" }
 
         }
       },
@@ -104,180 +91,115 @@ exports.getSuppliersReport = async (req, res) => {
           name: 1,
           phone: 1,
 
-          totalPurchases: 1,
-          totalReturns: 1,
-
-          // ================= NET PURCHASES =================
-          netPurchases: {
-            $subtract: ["$totalPurchases", "$totalReturns"]
-          },
-
-          totalPaid: 1,
-
-          totalDebtFromTransactions: 1,
-          currentDebt: 1,
+          totalPayments: 1,
+          totalDebt: 1,
 
           // ================= CASH =================
           cash: {
-            $reduce: {
-              input: "$payments",
-              initialValue: 0,
-              in: {
-                $add: [
-                  "$$value",
-                  {
-                    $sum: {
-                      $map: {
-                        input: "$$this",
-                        as: "p",
-                        in: {
-                          $cond: [
-                            {
-                              $and: [
-                                { $eq: ["$$p.paymentMethod", "cash"] },
-                                { $eq: ["$$p.paymentType", "payment"] }
-                              ]
-                            },
-                            "$$p.paidAmount",
-                            0
-                          ]
-                        }
-                      }
-                    }
-                  }
-                ]
+            $sum: {
+              $map: {
+                input: "$payments",
+                as: "p",
+                in: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $eq: ["$$p.type", "payment"] },
+                        { $eq: ["$$p.paymentMethod", "cash"] }
+                      ]
+                    },
+                    "$$p.amount",
+                    0
+                  ]
+                }
               }
             }
           },
 
           // ================= WALLET =================
           wallet: {
-            $reduce: {
-              input: "$payments",
-              initialValue: 0,
-              in: {
-                $add: [
-                  "$$value",
-                  {
-                    $sum: {
-                      $map: {
-                        input: "$$this",
-                        as: "p",
-                        in: {
-                          $cond: [
-                            {
-                              $and: [
-                                { $eq: ["$$p.paymentMethod", "wallet"] },
-                                { $eq: ["$$p.paymentType", "payment"] }
-                              ]
-                            },
-                            "$$p.paidAmount",
-                            0
-                          ]
-                        }
-                      }
-                    }
-                  }
-                ]
+            $sum: {
+              $map: {
+                input: "$payments",
+                as: "p",
+                in: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $eq: ["$$p.type", "payment"] },
+                        { $eq: ["$$p.paymentMethod", "wallet"] }
+                      ]
+                    },
+                    "$$p.amount",
+                    0
+                  ]
+                }
+              }
+            }
+          },
+
+          // ================= BANK TRANSFER =================
+          bank: {
+            $sum: {
+              $map: {
+                input: "$payments",
+                as: "p",
+                in: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $eq: ["$$p.type", "payment"] },
+                        { $eq: ["$$p.paymentMethod", "bank transfer"] }
+                      ]
+                    },
+                    "$$p.amount",
+                    0
+                  ]
+                }
               }
             }
           },
 
           // ================= INSTAPAY =================
           instapay: {
-            $reduce: {
-              input: "$payments",
-              initialValue: 0,
-              in: {
-                $add: [
-                  "$$value",
-                  {
-                    $sum: {
-                      $map: {
-                        input: "$$this",
-                        as: "p",
-                        in: {
-                          $cond: [
-                            {
-                              $and: [
-                                { $eq: ["$$p.paymentMethod", "instapay"] },
-                                { $eq: ["$$p.paymentType", "payment"] }
-                              ]
-                            },
-                            "$$p.paidAmount",
-                            0
-                          ]
-                        }
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          },
-
-          // ================= BANK =================
-          bank: {
-            $reduce: {
-              input: "$payments",
-              initialValue: 0,
-              in: {
-                $add: [
-                  "$$value",
-                  {
-                    $sum: {
-                      $map: {
-                        input: "$$this",
-                        as: "p",
-                        in: {
-                          $cond: [
-                            {
-                              $and: [
-                                { $eq: ["$$p.paymentMethod", "bank"] },
-                                { $eq: ["$$p.paymentType", "payment"] }
-                              ]
-                            },
-                            "$$p.paidAmount",
-                            0
-                          ]
-                        }
-                      }
-                    }
-                  }
-                ]
+            $sum: {
+              $map: {
+                input: "$payments",
+                as: "p",
+                in: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $eq: ["$$p.type", "payment"] },
+                        { $eq: ["$$p.paymentMethod", "instapay"] }
+                      ]
+                    },
+                    "$$p.amount",
+                    0
+                  ]
+                }
               }
             }
           },
 
           // ================= WORK =================
           work: {
-            $reduce: {
-              input: "$payments",
-              initialValue: 0,
-              in: {
-                $add: [
-                  "$$value",
-                  {
-                    $sum: {
-                      $map: {
-                        input: "$$this",
-                        as: "p",
-                        in: {
-                          $cond: [
-                            {
-                              $and: [
-                                { $eq: ["$$p.paymentMethod", "work"] },
-                                { $eq: ["$$p.paymentType", "payment"] }
-                              ]
-                            },
-                            "$$p.paidAmount",
-                            0
-                          ]
-                        }
-                      }
-                    }
-                  }
-                ]
+            $sum: {
+              $map: {
+                input: "$payments",
+                as: "p",
+                in: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $eq: ["$$p.type", "payment"] },
+                        { $eq: ["$$p.paymentMethod", "work"] }
+                      ]
+                    },
+                    "$$p.amount",
+                    0
+                  ]
+                }
               }
             }
           }
@@ -286,7 +208,7 @@ exports.getSuppliersReport = async (req, res) => {
       },
 
       {
-        $sort: { currentDebt: -1 }
+        $sort: { totalDebt: -1 }
       }
 
     ]);

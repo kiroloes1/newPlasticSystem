@@ -1,6 +1,6 @@
-const Supplier = require(`${__dirname}/../../models/supplier`);
+const Supplier = require("../../models/supplier");
 
-exports.getSuppliersReport = async (req, res) => {
+exports.getSupplierFinanceReport = async (req, res) => {
   try {
 
     const { filter, startDate, endDate } = req.query;
@@ -9,20 +9,20 @@ exports.getSuppliersReport = async (req, res) => {
 
     let dateMatch = {};
 
-    // ========== DATE FILTER ==========
+    // ================= DATE FILTER =================
     if (filter === "daily") {
       const start = new Date();
-      start.setHours(0,0,0,0);
+      start.setHours(0, 0, 0, 0);
 
       const end = new Date();
-      end.setHours(23,59,59,999);
+      end.setHours(23, 59, 59, 999);
 
       dateMatch = { "transactions.date": { $gte: start, $lte: end } };
     }
 
     else if (filter === "monthly") {
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      const end = new Date(now.getFullYear(), now.getMonth()+1, 0);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
       dateMatch = { "transactions.date": { $gte: start, $lte: end } };
     }
@@ -43,16 +43,13 @@ exports.getSuppliersReport = async (req, res) => {
       };
     }
 
-    // ========== AGGREGATION ==========
+    // ================= AGGREGATION =================
     const report = await Supplier.aggregate([
 
-      // 1. unwind transactions
       { $unwind: "$transactions" },
 
-      // 2. filter by date
       { $match: dateMatch },
 
-      // 3. group per supplier
       {
         $group: {
 
@@ -60,7 +57,7 @@ exports.getSuppliersReport = async (req, res) => {
           name: { $first: "$name" },
           phone: { $first: "$phone" },
 
-          // ========== DELIVERY TOTAL ==========
+          // ================= PURCHASES =================
           totalPurchases: {
             $sum: {
               $cond: [
@@ -71,7 +68,7 @@ exports.getSuppliersReport = async (req, res) => {
             }
           },
 
-          // ========== RETURNS TOTAL ==========
+          // ================= RETURNS =================
           totalReturns: {
             $sum: {
               $cond: [
@@ -82,21 +79,25 @@ exports.getSuppliersReport = async (req, res) => {
             }
           },
 
-          // ========== PAID ==========
+          // ================= PAID =================
           totalPaid: {
             $sum: "$transactions.paid"
           },
 
-          // ========== PAYMENT BREAKDOWN ==========
+          // ================= PAYMENT HISTORY =================
           payments: { $push: "$transactions.payment" },
 
-          // ========== REAL CURRENT DEBT ==========
+          // ================= DEBT FROM TRANSACTIONS =================
+          totalDebtFromTransactions: {
+            $sum: "$transactions.remainingBalance"
+          },
+
+          // ================= CURRENT REAL DEBT =================
           currentDebt: { $first: "$remainingBalance" }
 
         }
       },
 
-      // 4. FINAL CALCULATION
       {
         $project: {
 
@@ -106,15 +107,17 @@ exports.getSuppliersReport = async (req, res) => {
           totalPurchases: 1,
           totalReturns: 1,
 
-          // NET PURCHASES (IMPORTANT)
+          // ================= NET PURCHASES =================
           netPurchases: {
             $subtract: ["$totalPurchases", "$totalReturns"]
           },
 
           totalPaid: 1,
+
+          totalDebtFromTransactions: 1,
           currentDebt: 1,
 
-          // ========== PAYMENT METHODS ==========
+          // ================= CASH =================
           cash: {
             $reduce: {
               input: "$payments",
@@ -129,7 +132,12 @@ exports.getSuppliersReport = async (req, res) => {
                         as: "p",
                         in: {
                           $cond: [
-                            { $eq: ["$$p.paymentMethod", "cash"] },
+                            {
+                              $and: [
+                                { $eq: ["$$p.paymentMethod", "cash"] },
+                                { $eq: ["$$p.paymentType", "payment"] }
+                              ]
+                            },
                             "$$p.paidAmount",
                             0
                           ]
@@ -142,6 +150,7 @@ exports.getSuppliersReport = async (req, res) => {
             }
           },
 
+          // ================= WALLET =================
           wallet: {
             $reduce: {
               input: "$payments",
@@ -156,7 +165,12 @@ exports.getSuppliersReport = async (req, res) => {
                         as: "p",
                         in: {
                           $cond: [
-                            { $eq: ["$$p.paymentMethod", "wallet"] },
+                            {
+                              $and: [
+                                { $eq: ["$$p.paymentMethod", "wallet"] },
+                                { $eq: ["$$p.paymentType", "payment"] }
+                              ]
+                            },
                             "$$p.paidAmount",
                             0
                           ]
@@ -169,6 +183,7 @@ exports.getSuppliersReport = async (req, res) => {
             }
           },
 
+          // ================= INSTAPAY =================
           instapay: {
             $reduce: {
               input: "$payments",
@@ -183,7 +198,12 @@ exports.getSuppliersReport = async (req, res) => {
                         as: "p",
                         in: {
                           $cond: [
-                            { $eq: ["$$p.paymentMethod", "instapay"] },
+                            {
+                              $and: [
+                                { $eq: ["$$p.paymentMethod", "instapay"] },
+                                { $eq: ["$$p.paymentType", "payment"] }
+                              ]
+                            },
                             "$$p.paidAmount",
                             0
                           ]
@@ -196,6 +216,7 @@ exports.getSuppliersReport = async (req, res) => {
             }
           },
 
+          // ================= BANK =================
           bank: {
             $reduce: {
               input: "$payments",
@@ -210,7 +231,12 @@ exports.getSuppliersReport = async (req, res) => {
                         as: "p",
                         in: {
                           $cond: [
-                            { $eq: ["$$p.paymentMethod", "bank"] },
+                            {
+                              $and: [
+                                { $eq: ["$$p.paymentMethod", "bank"] },
+                                { $eq: ["$$p.paymentType", "payment"] }
+                              ]
+                            },
                             "$$p.paidAmount",
                             0
                           ]
@@ -223,6 +249,7 @@ exports.getSuppliersReport = async (req, res) => {
             }
           },
 
+          // ================= WORK =================
           work: {
             $reduce: {
               input: "$payments",
@@ -237,7 +264,12 @@ exports.getSuppliersReport = async (req, res) => {
                         as: "p",
                         in: {
                           $cond: [
-                            { $eq: ["$$p.paymentMethod", "work"] },
+                            {
+                              $and: [
+                                { $eq: ["$$p.paymentMethod", "work"] },
+                                { $eq: ["$$p.paymentType", "payment"] }
+                              ]
+                            },
                             "$$p.paidAmount",
                             0
                           ]
@@ -253,7 +285,6 @@ exports.getSuppliersReport = async (req, res) => {
         }
       },
 
-      // 5. SORT BY DEBT
       {
         $sort: { currentDebt: -1 }
       }

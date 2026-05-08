@@ -1,7 +1,6 @@
-const Supplier = require(`${__dirname}/../../models/supplier`);
+const Supplier = require("../../models/supplier");
 
-
-exports.getSuppliersReport = async (req, res) => {
+exports.getSupplierFinanceReport = async (req, res) => {
   try {
 
     const { filter, startDate, endDate } = req.query;
@@ -10,6 +9,7 @@ exports.getSuppliersReport = async (req, res) => {
 
     let dateMatch = {};
 
+    // ========== DATE FILTER ==========
     if (filter === "daily") {
       const start = new Date();
       start.setHours(0,0,0,0);
@@ -43,6 +43,7 @@ exports.getSuppliersReport = async (req, res) => {
       };
     }
 
+    // ========== AGGREGATION ==========
     const report = await Supplier.aggregate([
 
       // 1. unwind transactions
@@ -56,41 +57,64 @@ exports.getSuppliersReport = async (req, res) => {
         $group: {
 
           _id: "$_id",
-
           name: { $first: "$name" },
-
           phone: { $first: "$phone" },
 
-          // total purchases
+          // ========== DELIVERY TOTAL ==========
           totalPurchases: {
-            $sum: "$transactions.totalAmount"
+            $sum: {
+              $cond: [
+                { $eq: ["$transactions.type", "delivery"] },
+                "$transactions.totalAmount",
+                0
+              ]
+            }
           },
 
-          // total paid
+          // ========== RETURNS TOTAL ==========
+          totalReturns: {
+            $sum: {
+              $cond: [
+                { $eq: ["$transactions.type", "return"] },
+                "$transactions.totalAmount",
+                0
+              ]
+            }
+          },
+
+          // ========== PAID ==========
           totalPaid: {
             $sum: "$transactions.paid"
           },
 
-          // payment breakdown
+          // ========== PAYMENT BREAKDOWN ==========
           payments: { $push: "$transactions.payment" },
 
-          // ❗ IMPORTANT: real current debt (from supplier field)
+          // ========== REAL CURRENT DEBT ==========
           currentDebt: { $first: "$remainingBalance" }
 
         }
       },
 
-      // 4. payment breakdown
+      // 4. FINAL CALCULATION
       {
         $project: {
 
           name: 1,
           phone: 1,
-          totalPurchases: 1,
-          totalPaid: 1,
 
+          totalPurchases: 1,
+          totalReturns: 1,
+
+          // NET PURCHASES (IMPORTANT)
+          netPurchases: {
+            $subtract: ["$totalPurchases", "$totalReturns"]
+          },
+
+          totalPaid: 1,
           currentDebt: 1,
 
+          // ========== PAYMENT METHODS ==========
           cash: {
             $reduce: {
               input: "$payments",
@@ -197,12 +221,39 @@ exports.getSuppliersReport = async (req, res) => {
                 ]
               }
             }
+          },
+
+          work: {
+            $reduce: {
+              input: "$payments",
+              initialValue: 0,
+              in: {
+                $add: [
+                  "$$value",
+                  {
+                    $sum: {
+                      $map: {
+                        input: "$$this",
+                        as: "p",
+                        in: {
+                          $cond: [
+                            { $eq: ["$$p.paymentMethod", "work"] },
+                            "$$p.paidAmount",
+                            0
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
           }
 
         }
       },
 
-      // 5. sort by debt (most important)
+      // 5. SORT BY DEBT
       {
         $sort: { currentDebt: -1 }
       }

@@ -111,7 +111,7 @@ exports.getSuppliersReport = async (req, res) => {
           },
 
           totalRemaining: {
-            $sum: "$transactions.remainingBalance"
+            $eq: "remainingBalance"
           },
 
 

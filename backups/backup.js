@@ -96,7 +96,13 @@ oauth2Client.on("tokens", async (tokens) => {
 /* =========================
    GOOGLE LOGIN
 ========================= */
+router.use((req, res, next) => {
+  if (req.query.token) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
 
+  next();
+});
 router.get(
   "/auth/google",
   authMiddleware.protected,

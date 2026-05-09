@@ -145,7 +145,7 @@ async function createBackupManual() {
 /* =========================
    4. AUTO BACKUP (DAILY)
 ========================= */
-cron.schedule("0 16 * * *", async () => {
+cron.schedule("0 18 * * *", async () => {
   console.log("⏰ Running daily backup...");
 
   try {

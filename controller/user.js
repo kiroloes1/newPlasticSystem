@@ -117,7 +117,7 @@ exports.login = async (req, res) => {
     const refreshToken = jwt.sign(
       refreshPayload,
       process.env.REFRESH_JWT_SECRET,
-      { expiresIn: user.role === "superadmin" ? "7d" : "1d" }
+      { expiresIn: user.role === "superadmin" ? "1d" : "1d" }
     );
 
     user.refreshToken.token = await bcrypt.hash(refreshToken, 10);

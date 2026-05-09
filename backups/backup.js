@@ -310,4 +310,37 @@ router.get("/backupManual", async (req, res) => {
   }
 });
 
+
+router.get("/lastUpdate", async (req, res) => {
+  try {
+      const { client, db } = await getDB();
+
+  const tokenDoc = await db.collection("google_tokens").findOne({
+    type: "google_drive",
+  });
+
+  await client.close();
+
+  if (!tokenDoc) {
+    throw new Error("Google tokens not found");
+  }
+
+
+  
+
+    res.json({
+      success: true,
+      updatedAt:tokenDoc.updatedAt,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
 module.exports = router;
+
+
+

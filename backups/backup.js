@@ -159,9 +159,7 @@ async function createBackup() {
         .toArray();
     }
 
-    const date = new Date().toISOString().split("T")[0];
-
-    const fileName = `backup-${date}.json`;
+const fileName = "backupNewPlasticYassa.json";
 
     const filePath = path.join(__dirname, fileName);
 

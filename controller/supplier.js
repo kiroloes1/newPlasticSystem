@@ -18,6 +18,19 @@ exports.getAllSuppliers = async (req, res) => {
   }
 };
 
+exports.getAllSuppliersToDelivery = async (req, res) => {
+  try {
+    const suppliers = await Supplier.find({_id:1,name:1,remainingBalance:1}).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: "Success",
+      data: suppliers,
+    });
+  } catch (err) {
+    res.status(500).json({ message:err.message });
+  }
+};
+
 // ================= GET BY ID =================
 exports.getSupplierById = async (req, res) => {
   try {

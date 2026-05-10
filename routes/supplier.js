@@ -16,6 +16,11 @@ router.use(role('superadmin', 'manager')); // only admin and manager can access 
 // GET all suppliers
 router.get("/", supplierController.getAllSuppliers);
 
+// GET all suppliers to delivery
+router.get("/getAllSuppliersToDelivery", supplierController.getAllSuppliersToDelivery);
+
+
+
 // GET supplier by ID
 router.get("/:id", supplierController.getSupplierById);
 

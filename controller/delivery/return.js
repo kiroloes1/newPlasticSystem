@@ -239,6 +239,25 @@ exports.getAllReturnDeliveries = async (req, res) => {
 };
 
 
+// get all
+exports.getAllReturnDeliveriesALL = async (req, res) => {
+    try {
+        const data = await ReturnDelivery.find({},{delveryNumber:1,deliveryDate:1,_id:1 ,supplier:1})
+            .populate("supplier", "name")
+            .sort({ createdAt: -1 });
+
+        res.json({
+            results: data.length,
+            data
+        });
+
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+
+
 // getReturnById
 exports.getReturnById = async (req, res) => {
     try {

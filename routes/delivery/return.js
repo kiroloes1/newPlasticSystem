@@ -6,7 +6,8 @@ const {
     deleteReturnDelivery,
     getAllReturnDeliveries,
     getReturnById,
-    getReturnBySupplier
+    getReturnBySupplier,
+     getAllReturnDeliveriesALL
 } = require(`${__dirname}/../../controller/delivery/return`);
 const {role}= require(`${__dirname}/../../middlewares/authorization`) 
 const { protected } = require(`${__dirname}/../../middlewares/authMiddleware`); 

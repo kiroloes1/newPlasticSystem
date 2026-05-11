@@ -28,6 +28,9 @@ router.delete('/:id', deleteReturnDelivery);
 // Get All Returns
 router.get('/', getAllReturnDeliveries);
 
+router.get('/getAllReturnDeliveriesALL', getAllReturnDeliveriesALL);
+
+
 // Get By ID 
 router.get('/:id', getReturnById);
 

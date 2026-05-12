@@ -159,9 +159,10 @@ async function createBackup() {
         .toArray();
     }
 
-const fileName = "backupNewPlasticYassa.json";
+    const fileName = "backupNewPlasticYassa.json";
 
-    const filePath = path.join(__dirname, fileName);
+    // استخدم /tmp بدل __dirname
+    const filePath = path.join("/tmp", fileName);
 
     fs.writeFileSync(filePath, JSON.stringify(backup, null, 2));
 
@@ -205,6 +206,7 @@ const fileName = "backupNewPlasticYassa.json";
       console.log("✅ Backup uploaded");
     }
 
+    // حذف الملف المؤقت
     fs.unlinkSync(filePath);
   } catch (err) {
     console.log("❌ Backup Error:", err.message);
@@ -341,6 +343,5 @@ router.get("/lastUpdate", async (req, res) => {
 });
 
 module.exports = router;
-
 
 

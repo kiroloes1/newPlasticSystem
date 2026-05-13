@@ -45,6 +45,10 @@ router.patch("/addDebt/:id", supplierController.addDebt);
 router.patch("/paySupplier/:id", supplierController.paySupplier);
 
 
+// delete Payment History
+router.delete("/deletePaymentHistory/:paymentId/:supplierId", supplierController.deletePaymentHistory);
+
+
 // FILTER suppliers by search query
 router.get("/filter/search", supplierController.filterSuppliers);
 

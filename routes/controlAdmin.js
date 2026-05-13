@@ -10,6 +10,8 @@ router.use(authMiddleware.protected);
 
 
 
+// delete admin
+router.delete("/:id",authorizationMiddleware.role('superadmin'), adminController.deleteAdmin);
 // CRUD Admin
 
 router.use(authorizationMiddleware.role('superadmin', 'manager')); 
@@ -30,10 +32,12 @@ router.get("/:id", adminController.getAdminById);
 // update admin 
 router.patch("/:id", adminController.updateAdmin);
 
-// delete admin
-router.delete("/:id", adminController.deleteAdmin);
 
 // activate / deactivate
 router.patch("/:id/toggle-active", adminController.activateOrDeactivateAdmin);
 router.patch("/changeRole/:id" ,adminController.changeRole)
+
+
+
+
 module.exports = router;

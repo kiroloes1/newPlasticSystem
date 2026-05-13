@@ -358,3 +358,92 @@ exports.filterSuppliers = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+
+exports.deletePaymentHistory = async (req, res) => {
+  const session = await mongoose.startSession();
+
+  try {
+
+    session.startTransaction();
+
+    const { paymentId, supplierId } = req.params;
+
+    const supplier = await Supplier.findById(supplierId).session(session);
+
+    if (!supplier) {
+      await session.abortTransaction();
+      session.endSession();
+
+      return res.status(404).json({
+        message: "التاجر غير موجود"
+      });
+    }
+
+    const existPaymentHistory = supplier.paymentHistory.find(
+      e => e._id.toString() === paymentId
+    );
+
+    if (!existPaymentHistory) {
+
+      await session.abortTransaction();
+      session.endSession();
+
+      return res.status(404).json({
+        message: "العملية غير موجودة"
+      });
+    }
+
+    if (existPaymentHistory.type === "payment") {
+
+      supplier.remainingBalance = parseFloat(
+        (supplier.remainingBalance + existPaymentHistory.amount).toFixed(2)
+      );
+
+    } else {
+
+      supplier.remainingBalance = parseFloat(
+        (supplier.remainingBalance - existPaymentHistory.amount).toFixed(2)
+      );
+    }
+
+    // delete transaction if cash
+    if (existPaymentHistory.paymentMethod === "cash") {
+
+      await Transaction.findOneAndDelete({
+        supplierId: supplier._id,
+        totalAmount: existPaymentHistory.amount,
+        type:
+          existPaymentHistory.type === "payment"
+            ? "expense"
+            : "income"
+      }).session(session);
+
+    }
+
+    supplier.paymentHistory = supplier.paymentHistory.filter(
+      e => e._id.toString() !== paymentId
+    );
+
+    await supplier.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      message: "تم حذف العملية بنجاح",
+      remainingBalance: supplier.remainingBalance
+    });
+
+  } catch (err) {
+
+    await session.abortTransaction();
+    session.endSession();
+
+    res.status(500).json({
+      message: "Server error",
+      error: err.message
+    });
+  }
+};
+

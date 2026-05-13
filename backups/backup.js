@@ -399,6 +399,22 @@ router.get("/google-account", async (req, res) => {
   }
 });
 
+router.get("/checkTokens", async (req, res) => {
+  try {
+    const tokens = await getTokens();
+
+    res.json({
+      success: true,
+      tokens,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
 module.exports = router;
 
 

@@ -213,7 +213,7 @@ async function createBackup() {
         },
       });
 
-      console.log("♻️ Backup updated");
+     
     } else {
       await drive.files.create({
         requestBody: {
@@ -225,7 +225,7 @@ async function createBackup() {
         },
       });
 
-      console.log("✅ Backup uploaded");
+      
     }
 
     await updateLastBackupDate();
@@ -357,6 +357,34 @@ router.get("/lastUpdate", async (req, res) => {
     res.json({
       success: true,
       updatedAt:tokenDoc.updatedAt,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
+
+router.get("/google-account", async (req, res) => {
+  try {
+    const tokens = await getTokens();
+
+    oauth2Client.setCredentials(tokens);
+
+    const oauth2 = google.oauth2({
+      auth: oauth2Client,
+      version: "v2",
+    });
+
+    const userInfo = await oauth2.userinfo.get();
+
+    res.json({
+      success: true,
+      email: userInfo.data.email,
+      name: userInfo.data.name,
+      picture: userInfo.data.picture,
     });
   } catch (err) {
     res.status(500).json({

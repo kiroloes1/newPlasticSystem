@@ -140,6 +140,28 @@ router.get("/oauth2callback", async (req, res) => {
   }
 });
 
+
+/* =========================
+   UPDATE LAST BACKUP DATE
+========================= */
+
+async function updateLastBackupDate() {
+  const { client, db } = await getDB();
+
+  try {
+    await db.collection("google_tokens").updateOne(
+      { type: "google_drive" },
+      {
+        $set: {
+          lastBackupAt: new Date(),
+        },
+      }
+    );
+  } finally {
+    await client.close();
+  }
+}
+
 /* =========================
    CREATE BACKUP
 ========================= */
@@ -205,6 +227,8 @@ async function createBackup() {
 
       console.log("✅ Backup uploaded");
     }
+
+    await updateLastBackupDate();
 
     // حذف الملف المؤقت
     fs.unlinkSync(filePath);

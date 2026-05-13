@@ -373,6 +373,9 @@ router.get("/google-account", async (req, res) => {
 
     oauth2Client.setCredentials(tokens);
 
+
+    await oauth2Client.getAccessToken();
+
     const oauth2 = google.oauth2({
       auth: oauth2Client,
       version: "v2",
@@ -387,6 +390,8 @@ router.get("/google-account", async (req, res) => {
       picture: userInfo.data.picture,
     });
   } catch (err) {
+    console.log(err);
+
     res.status(500).json({
       success: false,
       error: err.message,

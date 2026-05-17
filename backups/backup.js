@@ -360,7 +360,7 @@ router.get("/lastUpdate", async (req, res) => {
 
     res.json({
       success: true,
-      updatedAt:tokenDoc.updatedAt,
+      updatedAt:tokenDoc.lastBackupAt,
     });
   } catch (err) {
     res.status(500).json({

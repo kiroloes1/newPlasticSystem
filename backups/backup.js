@@ -279,7 +279,7 @@ async function createBackupManual() {
 ========================= */
 
 cron.schedule(
-  "21 23 * * *",
+  "23 23 * * *",
   async () => {
     console.log("⏰ Running daily backup...");
 

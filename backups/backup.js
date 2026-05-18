@@ -153,15 +153,21 @@ router.get("/oauth2callback", async (req, res) => {
    UPDATE LAST BACKUP DATE
 ========================= */
 
-async function updateLastBackupDate(db) {
-  await db.collection("google_tokens").updateOne(
-    { type: "google_drive" },
-    {
-      $set: {
-        lastBackupAt: new Date(),
-      },
-    }
-  );
+async function updateLastBackupDate() {
+  const { client, db } = await getDB();
+
+  try {
+    await db.collection("google_tokens").updateOne(
+      { type: "google_drive" },
+      {
+        $set: {
+          lastBackupAt: new Date(),
+        },
+      }
+    );
+  } finally {
+    await client.close();
+  }
 }
 
 /* =========================
@@ -230,7 +236,7 @@ async function createBackup() {
       
     }
 
-    await updateLastBackupDate(db);
+    await updateLastBackupDate();
 
     // حذف الملف المؤقت
     fs.unlinkSync(filePath);
@@ -273,12 +279,13 @@ async function createBackupManual() {
 ========================= */
 
 cron.schedule(
-  "17 23 * * *",
+  "21 23 * * *",
   async () => {
     console.log("⏰ Running daily backup...");
 
     try {
       await createBackup();
+      await updateLastBackupDate();
     } catch (err) {
       console.log("❌ Auto backup failed:", err.message);
     }
@@ -418,5 +425,4 @@ router.get("/checkTokens", async (req, res) => {
 });
 
 module.exports = router;
-
 

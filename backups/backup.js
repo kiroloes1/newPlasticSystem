@@ -30,13 +30,12 @@ async function getDB() {
 }
 
 /* =========================
-   SAVE TOKENS (تعديل لحماية تاريخ الباك أب)
+   SAVE TOKENS
 ========================= */
 
 async function saveTokens(tokens) {
   const { client, db } = await getDB();
 
-  // جلب التوكنز القديمة لدمجها لضمان عدم ضياع الـ refresh_token
   const existingDoc = await db.collection("google_tokens").findOne({
     type: "google_drive",
   });
@@ -52,7 +51,6 @@ async function saveTokens(tokens) {
       $set: {
         tokens: mergedTokens,
         updatedAt: new Date(),
-        // ❌ تم إزالة lastBackupAt من هنا تماماً لمنع مسحه بالخطأ عند تحديث التوكنز يدوياً أو تلقائياً
       },
     },
     { upsert: true }
@@ -151,24 +149,20 @@ router.get("/oauth2callback", async (req, res) => {
 
 /* =========================
    UPDATE LAST BACKUP DATE
+   (تعديل: تستقبل الـ db الحالي والمفتوح مباشرة لمنع تضارب الاتصالات)
 ========================= */
 
-async function updateLastBackupDate() {
-  const { client, db } = await getDB();
-  try {
-    await db.collection("google_tokens").updateOne(
-      { type: "google_drive" },
-      {
-        $set: {
-          lastBackupAt: new Date(), // يتم التحديث بشكل منفصل ومستقل تماماً
-        },
+async function updateLastBackupDate(dbInstance) {
+  await dbInstance.collection("google_tokens").updateOne(
+    { type: "google_drive" },
+    {
+      $set: {
+        lastBackupAt: new Date(),
       },
-      { upsert: true }
-    );
-    console.log("📅 lastBackupAt updated successfully");
-  } finally {
-    await client.close();
-  }
+    },
+    { upsert: true }
+  );
+  console.log("📅 lastBackupAt updated successfully inside session");
 }
 
 /* =========================
@@ -197,7 +191,6 @@ async function createBackup() {
     const tokens = await getTokens();
     oauth2Client.setCredentials(tokens);
 
-    // ضمان عمل الـ Refresh للـ Cron في الخلفية بنجاح
     if (oauth2Client.credentials.refresh_token) {
       await oauth2Client.getAccessToken();
     }
@@ -233,8 +226,8 @@ async function createBackup() {
       });
     }
 
-    // استدعاء دالة التحديث بعد انتهاء الرفع بنجاح
-    await updateLastBackupDate();
+    // 🔥 تمرير الـ db المفتوح حالياً لضمان الكتابة الفورية قبل الـ close
+    await updateLastBackupDate(db);
 
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
@@ -243,6 +236,7 @@ async function createBackup() {
     console.log("❌ Backup Error:", err.message);
     throw err;
   } finally {
+    // يغلق الاتصال بأمان بعد تنفيذ كل العمليات بنجاح
     await client.close();
   }
 }
@@ -279,10 +273,11 @@ cron.schedule(
   async () => {
     console.log("⏰ Running daily backup...");
     try {
-      // createBackup داخلياً بتستدعي دالة updateLastBackupDate فور النجاح
       await createBackup();
+      console.log("✅ Cron completed successfully");
     } catch (err) {
-      console.log("❌ Auto backup failed:", err.message);
+      // طباعة تفصيلية للخطأ في كونسول السيرفر لمعرفة السبب إذا تكرر
+      console.error("❌ CRON AUTO BACKUP DETAILED ERROR:", err);
     }
   },
   {

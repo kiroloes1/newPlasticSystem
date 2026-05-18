@@ -22,9 +22,7 @@ const oauth2Client = new google.auth.OAuth2(
 
 async function getDB() {
   const client = new MongoClient(process.env.DATABASE);
-
   await client.connect();
-
   return {
     client,
     db: client.db(),
@@ -32,23 +30,29 @@ async function getDB() {
 }
 
 /* =========================
-   SAVE TOKENS
+   SAVE TOKENS (تعديل لحماية تاريخ الباك أب)
 ========================= */
 
 async function saveTokens(tokens) {
   const { client, db } = await getDB();
 
-  const existing = await db.collection("google_tokens").findOne({
+  // جلب التوكنز القديمة لدمجها لضمان عدم ضياع الـ refresh_token
+  const existingDoc = await db.collection("google_tokens").findOne({
     type: "google_drive",
   });
+
+  const mergedTokens = {
+    ...existingDoc?.tokens,
+    ...tokens,
+  };
 
   await db.collection("google_tokens").updateOne(
     { type: "google_drive" },
     {
       $set: {
-        tokens,
+        tokens: mergedTokens,
         updatedAt: new Date(),
-        lastBackupAt: existing?.lastBackupAt || null,
+        // ❌ تم إزالة lastBackupAt من هنا تماماً لمنع مسحه بالخطأ عند تحديث التوكنز يدوياً أو تلقائياً
       },
     },
     { upsert: true }
@@ -56,6 +60,7 @@ async function saveTokens(tokens) {
 
   await client.close();
 }
+
 /* =========================
    GET TOKENS
 ========================= */
@@ -90,7 +95,6 @@ oauth2Client.on("tokens", async (tokens) => {
     };
 
     await saveTokens(updatedTokens);
-
     console.log("🔄 Google tokens updated");
   } catch (err) {
     console.log("❌ Token update failed:", err.message);
@@ -104,9 +108,9 @@ router.use((req, res, next) => {
   if (req.query.token) {
     req.headers.authorization = `Bearer ${req.query.token}`;
   }
-
   next();
 });
+
 router.get(
   "/auth/google",
   authMiddleware.protected,
@@ -115,11 +119,11 @@ router.get(
     const url = oauth2Client.generateAuthUrl({
       access_type: "offline",
       prompt: "consent",
-           scope: [
-  "https://www.googleapis.com/auth/drive.file",
-  "https://www.googleapis.com/auth/userinfo.email",
-  "https://www.googleapis.com/auth/userinfo.profile",
-],
+      scope: [
+        "https://www.googleapis.com/auth/drive.file",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
+      ],
     });
 
     res.redirect(url);
@@ -133,21 +137,17 @@ router.get(
 router.get("/oauth2callback", async (req, res) => {
   try {
     const { code } = req.query;
-
     const { tokens } = await oauth2Client.getToken(code);
 
     oauth2Client.setCredentials(tokens);
-
     await saveTokens(tokens);
 
     res.send("✅ Google Auth Success");
   } catch (err) {
     console.log(err);
-
     res.status(500).send(err.message);
   }
 });
-
 
 /* =========================
    UPDATE LAST BACKUP DATE
@@ -155,16 +155,17 @@ router.get("/oauth2callback", async (req, res) => {
 
 async function updateLastBackupDate() {
   const { client, db } = await getDB();
-
   try {
     await db.collection("google_tokens").updateOne(
       { type: "google_drive" },
       {
         $set: {
-          lastBackupAt: new Date(),
+          lastBackupAt: new Date(), // يتم التحديث بشكل منفصل ومستقل تماماً
         },
-      }
+      },
+      { upsert: true }
     );
+    console.log("📅 lastBackupAt updated successfully");
   } finally {
     await client.close();
   }
@@ -179,7 +180,6 @@ async function createBackup() {
 
   try {
     const collections = await db.listCollections().toArray();
-
     let backup = {};
 
     for (const col of collections) {
@@ -190,15 +190,17 @@ async function createBackup() {
     }
 
     const fileName = "backupNewPlasticYassa.json";
-
-    // استخدم /tmp بدل __dirname
     const filePath = path.join("/tmp", fileName);
 
     fs.writeFileSync(filePath, JSON.stringify(backup, null, 2));
 
     const tokens = await getTokens();
-
     oauth2Client.setCredentials(tokens);
+
+    // ضمان عمل الـ Refresh للـ Cron في الخلفية بنجاح
+    if (oauth2Client.credentials.refresh_token) {
+      await oauth2Client.getAccessToken();
+    }
 
     const drive = google.drive({
       version: "v3",
@@ -212,7 +214,6 @@ async function createBackup() {
 
     if (existingFiles.data.files.length > 0) {
       const fileId = existingFiles.data.files[0].id;
-
       await drive.files.update({
         fileId,
         media: {
@@ -220,8 +221,6 @@ async function createBackup() {
           body: fs.createReadStream(filePath),
         },
       });
-
-     
     } else {
       await drive.files.create({
         requestBody: {
@@ -232,17 +231,16 @@ async function createBackup() {
           body: fs.createReadStream(filePath),
         },
       });
-
-      
     }
 
+    // استدعاء دالة التحديث بعد انتهاء الرفع بنجاح
     await updateLastBackupDate();
 
-    // حذف الملف المؤقت
-    fs.unlinkSync(filePath);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
   } catch (err) {
     console.log("❌ Backup Error:", err.message);
-
     throw err;
   } finally {
     await client.close();
@@ -255,10 +253,8 @@ async function createBackup() {
 
 async function createBackupManual() {
   const { client, db } = await getDB();
-
   try {
     const collections = await db.listCollections().toArray();
-
     let backup = {};
 
     for (const col of collections) {
@@ -279,13 +275,12 @@ async function createBackupManual() {
 ========================= */
 
 cron.schedule(
-  "23 23 * * *",
+  "28 23 * * *",
   async () => {
     console.log("⏰ Running daily backup...");
-
     try {
+      // createBackup داخلياً بتستدعي دالة updateLastBackupDate فور النجاح
       await createBackup();
-      await updateLastBackupDate();
     } catch (err) {
       console.log("❌ Auto backup failed:", err.message);
     }
@@ -300,10 +295,7 @@ cron.schedule(
 ========================= */
 
 router.use(authMiddleware.protected);
-
-router.use(
-  authorizationMiddleware.role("superadmin", "manager")
-);
+router.use(authorizationMiddleware.role("superadmin", "manager"));
 
 /* =========================
    BACKUP ROUTE
@@ -312,7 +304,6 @@ router.use(
 router.get("/backup", async (req, res) => {
   try {
     await createBackup();
-
     res.json({
       success: true,
       message: "✅ Backup completed",
@@ -332,7 +323,6 @@ router.get("/backup", async (req, res) => {
 router.get("/backupManual", async (req, res) => {
   try {
     const data = await createBackupManual();
-
     res.json({
       success: true,
       data,
@@ -345,27 +335,22 @@ router.get("/backupManual", async (req, res) => {
   }
 });
 
-
 router.get("/lastUpdate", async (req, res) => {
   try {
-      const { client, db } = await getDB();
+    const { client, db } = await getDB();
+    const tokenDoc = await db.collection("google_tokens").findOne({
+      type: "google_drive",
+    });
 
-  const tokenDoc = await db.collection("google_tokens").findOne({
-    type: "google_drive",
-  });
+    await client.close();
 
-  await client.close();
-
-  if (!tokenDoc) {
-    throw new Error("Google tokens not found");
-  }
-
-
-  
+    if (!tokenDoc) {
+      throw new Error("Google tokens not found");
+    }
 
     res.json({
       success: true,
-      updatedAt:tokenDoc.lastBackupAt,
+      updatedAt: tokenDoc.lastBackupAt,
     });
   } catch (err) {
     res.status(500).json({
@@ -375,13 +360,10 @@ router.get("/lastUpdate", async (req, res) => {
   }
 });
 
-
 router.get("/google-account", async (req, res) => {
   try {
     const tokens = await getTokens();
-
     oauth2Client.setCredentials(tokens);
-
 
     await oauth2Client.getAccessToken();
 
@@ -400,7 +382,6 @@ router.get("/google-account", async (req, res) => {
     });
   } catch (err) {
     console.log(err);
-
     res.status(500).json({
       success: false,
       error: err.message,
@@ -411,7 +392,6 @@ router.get("/google-account", async (req, res) => {
 router.get("/checkTokens", async (req, res) => {
   try {
     const tokens = await getTokens();
-
     res.json({
       success: true,
       tokens,
@@ -425,4 +405,3 @@ router.get("/checkTokens", async (req, res) => {
 });
 
 module.exports = router;
-

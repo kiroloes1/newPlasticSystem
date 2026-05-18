@@ -38,12 +38,17 @@ async function getDB() {
 async function saveTokens(tokens) {
   const { client, db } = await getDB();
 
+  const existing = await db.collection("google_tokens").findOne({
+    type: "google_drive",
+  });
+
   await db.collection("google_tokens").updateOne(
     { type: "google_drive" },
     {
       $set: {
         tokens,
         updatedAt: new Date(),
+        lastBackupAt: existing?.lastBackupAt || null,
       },
     },
     { upsert: true }
@@ -51,7 +56,6 @@ async function saveTokens(tokens) {
 
   await client.close();
 }
-
 /* =========================
    GET TOKENS
 ========================= */
@@ -149,21 +153,15 @@ router.get("/oauth2callback", async (req, res) => {
    UPDATE LAST BACKUP DATE
 ========================= */
 
-async function updateLastBackupDate() {
-  const { client, db } = await getDB();
-
-  try {
-    await db.collection("google_tokens").updateOne(
-      { type: "google_drive" },
-      {
-        $set: {
-          lastBackupAt: new Date(),
-        },
-      }
-    );
-  } finally {
-    await client.close();
-  }
+async function updateLastBackupDate(db) {
+  await db.collection("google_tokens").updateOne(
+    { type: "google_drive" },
+    {
+      $set: {
+        lastBackupAt: new Date(),
+      },
+    }
+  );
 }
 
 /* =========================
@@ -232,7 +230,7 @@ async function createBackup() {
       
     }
 
-    await updateLastBackupDate();
+    await updateLastBackupDate(db);
 
     // حذف الملف المؤقت
     fs.unlinkSync(filePath);
@@ -281,6 +279,7 @@ cron.schedule(
 
     try {
       await createBackup();
+     // await updateLastBackupDate();
     } catch (err) {
       console.log("❌ Auto backup failed:", err.message);
     }

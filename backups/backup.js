@@ -268,29 +268,23 @@ async function createBackupManual() {
    DAILY AUTO BACKUP
 ========================= */
 
-cron.schedule(
-  "33 23 * * *",
-  async () => {
-    console.log("⏰ Running daily backup...");
-    try {
-      await createBackup();
-      console.log("✅ Cron completed successfully");
-    } catch (err) {
-      // طباعة تفصيلية للخطأ في كونسول السيرفر لمعرفة السبب إذا تكرر
-      console.error("❌ CRON AUTO BACKUP DETAILED ERROR:", err);
-    }
-  },
-  {
-    timezone: "Africa/Cairo",
-  }
-);
+// cron.schedule(
+//   "33 23 * * *",
+//   async () => {
+//     console.log("⏰ Running daily backup...");
+//     try {
+//       await createBackup();
+//       console.log("✅ Cron completed successfully");
+//     } catch (err) {
+//       // طباعة تفصيلية للخطأ في كونسول السيرفر لمعرفة السبب إذا تكرر
+//       console.error("❌ CRON AUTO BACKUP DETAILED ERROR:", err);
+//     }
+//   },
+//   {
+//     timezone: "Africa/Cairo",
+//   }
+// );
 
-/* =========================
-   PROTECTED ROUTES
-========================= */
-
-router.use(authMiddleware.protected);
-router.use(authorizationMiddleware.role("superadmin", "manager"));
 
 /* =========================
    BACKUP ROUTE
@@ -310,6 +304,15 @@ router.get("/backup", async (req, res) => {
     });
   }
 });
+
+
+/* =========================
+   PROTECTED ROUTES
+========================= */
+
+router.use(authMiddleware.protected);
+router.use(authorizationMiddleware.role("superadmin", "manager"));
+
 
 /* =========================
    MANUAL DATA ROUTE

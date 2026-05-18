@@ -273,13 +273,12 @@ async function createBackupManual() {
 ========================= */
 
 cron.schedule(
-  "0 18 * * *",
+  "15 23 * * *",
   async () => {
     console.log("⏰ Running daily backup...");
 
     try {
       await createBackup();
-     // await updateLastBackupDate();
     } catch (err) {
       console.log("❌ Auto backup failed:", err.message);
     }

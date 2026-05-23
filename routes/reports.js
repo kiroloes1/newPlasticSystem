@@ -20,6 +20,8 @@ router.get("/delivey", delivey.getDeliveriesReport );
 router.get("/items", delivey.getItemsTotalWeights);
 router.get("/returnDelivery", returnDelivery.getReturnReport);
 router.get("/dashboard", dashboard.getDashboard);
+router.get("/getSupplierTransportReport", suppliers.getSupplierTransportReport);
+
 
 
 

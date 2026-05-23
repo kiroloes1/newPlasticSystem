@@ -287,3 +287,224 @@ exports.getSuppliersReport = async (req, res) => {
 
   }
 };
+
+
+exports.getSupplierTransportReport = async (req, res) => {
+  try {
+
+    const { filter, startDate, endDate } = req.query;
+
+    const now = new Date();
+
+    let dateMatch = {};
+
+    // DAILY
+    if (filter === "daily") {
+
+      const start = new Date();
+      start.setHours(0,0,0,0);
+
+      const end = new Date();
+      end.setHours(23,59,59,999);
+
+      dateMatch = {
+        "deliveryData.deliveryDate": {
+          $gte: start,
+          $lte: end
+        }
+      };
+
+    }
+
+    // MONTHLY
+    else if (filter === "monthly") {
+
+      const start = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        1
+      );
+
+      const end = new Date(
+        now.getFullYear(),
+        now.getMonth()+1,
+        0,
+        23,59,59
+      );
+
+      dateMatch = {
+        "deliveryData.deliveryDate": {
+          $gte:start,
+          $lte:end
+        }
+      };
+
+    }
+
+    // YEARLY
+    else if (filter === "yearly") {
+
+      const start =
+      new Date(now.getFullYear(),0,1);
+
+      const end =
+      new Date(now.getFullYear(),11,31,23,59,59);
+
+      dateMatch={
+        "deliveryData.deliveryDate":{
+          $gte:start,
+          $lte:end
+        }
+      };
+
+    }
+
+    // CUSTOM
+    else if(filter==="custom"){
+
+      dateMatch={
+        "deliveryData.deliveryDate":{
+          $gte:new Date(startDate),
+          $lte:new Date(endDate)
+        }
+      };
+
+    }
+
+
+    const report = await Supplier.aggregate([
+
+      {
+        $lookup:{
+          from:"delivers",
+          localField:"_id",
+          foreignField:"supplier",
+          as:"deliveryData"
+        }
+      },
+
+      {
+        $unwind:"$deliveryData"
+      },
+
+      {
+        $match:dateMatch
+      },
+
+      {
+        $unwind:"$deliveryData.items"
+      },
+
+      {
+        $unwind:"$deliveryData.items.batches"
+      },
+
+      {
+
+        $group:{
+
+          _id:"$_id",
+
+          supplierName:{
+            $first:"$name"
+          },
+
+          phone:{
+            $first:"$phone"
+          },
+
+          deliveryCount:{
+            $addToSet:
+            "$deliveryData._id"
+          },
+
+          totalWeight:{
+            $sum:
+            "$deliveryData.items.batches.weight"
+          },
+
+          totalQuantity:{
+            $sum:
+            "$deliveryData.items.batches.quantity"
+          },
+
+          totalReturnWeight:{
+            $sum:{
+              $ifNull:[
+                "$deliveryData.items.returnWeight",
+                0
+              ]
+            }
+          }
+
+        }
+
+      },
+
+      {
+
+        $project:{
+
+          supplierName:1,
+
+          phone:1,
+
+          numberOfTransport:{
+            $size:
+            "$deliveryCount"
+          },
+
+          totalWeight:1,
+
+          totalQuantity:1,
+
+          totalReturnWeight:1,
+
+          netWeight:{
+            $subtract:[
+              "$totalWeight",
+              "$totalReturnWeight"
+            ]
+          }
+
+        }
+
+      },
+
+      {
+
+        $sort:{
+          totalWeight:-1
+        }
+
+      }
+
+    ]);
+
+
+
+    return res.json({
+
+      success:true,
+
+      count:report.length,
+
+      report
+
+    });
+
+  }
+
+  catch(err){
+
+    return res.status(500).json({
+
+      success:false,
+
+      message:err.message
+
+    });
+
+  }
+
+};

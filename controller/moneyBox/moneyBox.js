@@ -231,7 +231,7 @@ exports.getAllTransactions = async (req, res) => {
         const box = await getCashBox(userId);
 
         // moneyBoxId: box._id
-        let filter = {  };
+              let filter = {   totalAmount: { $gt: 0 } };
 
         if (type) filter.type = type;
 

@@ -20,7 +20,7 @@ exports.getAllSuppliers = async (req, res) => {
 
 exports.getAllSupplierName = async (req, res) => {
   try {
-    const suppliers = await Supplier.find().sort({ createdAt: -1 },{_id:1,name:1});
+    const suppliers = await Supplier.find({},{_id:1,name:1}).sort({ createdAt: -1 });
 
     res.status(200).json({
       message: "Success",

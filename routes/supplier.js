@@ -19,6 +19,9 @@ router.get("/", supplierController.getAllSuppliers);
 // GET all suppliers to delivery
 router.get("/getAllSuppliersToDelivery", supplierController.getAllSuppliersToDelivery);
 
+router.get("/getAllSupplierName", supplierController.getAllSupplierName);
+
+
 
 
 // GET supplier by ID
@@ -33,6 +36,8 @@ router.put("/:id", supplierController.updateSupplier);
 
 // delete supplier
 router.delete("/:id", supplierController.deleteSupplier);
+
+
 
 
 

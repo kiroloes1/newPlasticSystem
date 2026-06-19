@@ -156,7 +156,7 @@ exports.createDelivery = async (req, res) => {
             remainingBalance: newBalance,
             note: "New delivery",
             payment,
-            date: new Date()
+            date: deliveryDate ||  new Date()
         });
 
         await supplierExists.save({ session });

@@ -199,7 +199,7 @@ exports.createDelivery = async (req, res) => {
             items: itemsUpdate || [],
            supplierId: supplierExists._id,
            deliverId: delivery[0]._id,
-         createdAt: deliveryDate || new Date()
+          date: deliveryDate || new Date()
             
         }], { session });
 
@@ -401,7 +401,7 @@ exports.updateDelivery = async (req, res) => {
             items: itemsUpdate || [],
            supplierId: supplierDoc._id,
            deliverId: updated._id,
-           createdAt: deliveryDate || new Date()
+            date: deliveryDate || new Date()
             
         }], { session });
 

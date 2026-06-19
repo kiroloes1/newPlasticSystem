@@ -510,7 +510,7 @@ exports.getAllDeliveries = async (req, res) => {
         // query
         const deliveries = await derliveryModel.find(filter,{_id:1, delveryNumber:1 ,supplier:1,totalAmount:1})
             .populate("supplier", "name")
-            .sort({ createdAt: -1 })
+            .sort({ deliveryDate: -1 })
 
 
 
@@ -610,14 +610,14 @@ exports.getDeliveryBySupplier = async (req, res) => {
             .populate("supplier", "name remainingBalance")
             .populate("receivedBy", "username email")
             .populate("items.item", "name")
-            .sort({ createdAt: -1 })
+            .sort({ deliveryDate: -1 })
             .lean();
 
         const returnDelivery=await deliveryReturnMoedl.find(filter)  
              .populate("supplier", "name remainingBalance")
             .populate("receivedBy", "username email")
             .populate("items.item", "name")
-            .sort({ createdAt: -1 })
+            .sort({ deliveryDate: -1 })
             .lean(); 
 
             const deliveries=[

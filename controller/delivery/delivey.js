@@ -198,7 +198,8 @@ exports.createDelivery = async (req, res) => {
             note: note || "  دفع فلوس للتاجر نقدي  " + "  "+ supplierExists.name,
             items: itemsUpdate || [],
            supplierId: supplierExists._id,
-           deliverId: delivery[0]._id
+           deliverId: delivery[0]._id,
+         createdAt: deliveryDate || new Date()
             
         }], { session });
 
@@ -334,7 +335,7 @@ exports.updateDelivery = async (req, res) => {
             paid: paidAmount,
             remainingBalance: newBalance,
             note: "Updated delivery",
-            date: new Date()
+            date:  deliveryDate || new Date()
         });
 
         await supplierDoc.save({ session });
@@ -399,7 +400,8 @@ exports.updateDelivery = async (req, res) => {
             note: note || "  دفع فلوس للتاجر نقدي  " + "  "+ supplierDoc.name,
             items: itemsUpdate || [],
            supplierId: supplierDoc._id,
-           deliverId: updated._id
+           deliverId: updated._id,
+           createdAt: deliveryDate || new Date()
             
         }], { session });
 

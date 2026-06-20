@@ -17,7 +17,7 @@ exports.createReturnDelivery = async (req, res) => {
         const tomorrow = new Date();
         tomorrow.setHours(23, 59, 59, 999);
 
-        const { supplier, items, notes ,deliveryDate } = req.body;
+        const { supplier, items, notes } = req.body;
         const adminId = req.user.userId;
 
         if (!supplier || !items?.length) {
@@ -30,7 +30,7 @@ exports.createReturnDelivery = async (req, res) => {
 
                 const lastDelivery = await ReturnDelivery
         .findOne({
-            deliveryDate: { $gte: today, $lte: tomorrow }
+            createdAt: { $gte: today, $lte: tomorrow }
         })
         .sort({ delveryNumber: -1 })
         .session(session);
@@ -79,7 +79,7 @@ exports.createReturnDelivery = async (req, res) => {
             paid: 0,
             remainingBalance: supplierDoc.remainingBalance,
             note: "Return delivery",
-            date: deliveryDate ||  new Date()
+            date: createdAt ||  new Date()
         });
 
         await supplierDoc.save({ session });
@@ -105,7 +105,7 @@ exports.updateReturnDelivery = async (req, res) => {
 
     try {
         const { id } = req.params;
-        const { items, notes ,deliveryDate } = req.body;
+        const { items, notes } = req.body;
         const adminId = req.user.userId;
 
         const oldReturn = await ReturnDelivery.findById(id).session(session);
@@ -154,7 +154,7 @@ exports.updateReturnDelivery = async (req, res) => {
             totalAmount: newTotal,
             remainingBalance: supplier.remainingBalance,
             note: "Updated return",
-            date: deliveryDate || new Date()
+            date: createdAt || new Date()
         });
 
         await supplier.save({ session });
@@ -226,7 +226,7 @@ exports.getAllReturnDeliveries = async (req, res) => {
             .populate("supplier", "name")
             .populate("receivedBy", "username")
             .populate("items.item", "name")
-            .sort({ deliveryDate: -1 });
+            .sort({ createdAt: -1 });
 
         res.json({
             results: data.length,
@@ -242,9 +242,9 @@ exports.getAllReturnDeliveries = async (req, res) => {
 // get all
 exports.getAllReturnDeliveriesALL = async (req, res) => {
     try {
-        const data = await ReturnDelivery.find({},{delveryNumber:1,deliveryDate:1,_id:1 ,supplier:1})
+        const data = await ReturnDelivery.find({},{delveryNumber:1,createdAt:1,_id:1 ,supplier:1})
             .populate("supplier", "name")
-            .sort({ deliveryDate: -1 });
+            .sort({ createdAt: -1 });
 
         res.json({
             results: data.length,
@@ -287,7 +287,7 @@ exports.getReturnBySupplier = async (req, res) => {
             .populate("supplier", "name")
             .populate("receivedBy", "username")
             .populate("items.item", "name")
-            .sort({ deliveryDate: -1 });
+            .sort({ createdAt: -1 });
 
         res.json({
             results: data.length,

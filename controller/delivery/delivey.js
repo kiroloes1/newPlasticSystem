@@ -335,7 +335,7 @@ exports.updateDelivery = async (req, res) => {
             paid: paidAmount,
             remainingBalance: newBalance,
             note: "Updated delivery",
-            // date:  deliveryDate || new Date()
+            date:  deliveryDate || new Date()
         });
 
         await supplierDoc.save({ session });

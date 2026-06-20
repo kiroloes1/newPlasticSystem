@@ -17,7 +17,7 @@ exports.createReturnDelivery = async (req, res) => {
         const tomorrow = new Date();
         tomorrow.setHours(23, 59, 59, 999);
 
-        const { supplier, items, notes } = req.body;
+        const { supplier, items, notes ,deliveryDate } = req.body;
         const adminId = req.user.userId;
 
         if (!supplier || !items?.length) {
@@ -105,7 +105,7 @@ exports.updateReturnDelivery = async (req, res) => {
 
     try {
         const { id } = req.params;
-        const { items, notes } = req.body;
+        const { items, notes ,deliveryDate } = req.body;
         const adminId = req.user.userId;
 
         const oldReturn = await ReturnDelivery.findById(id).session(session);

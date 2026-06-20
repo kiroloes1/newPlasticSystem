@@ -79,7 +79,7 @@ exports.createReturnDelivery = async (req, res) => {
             paid: 0,
             remainingBalance: supplierDoc.remainingBalance,
             note: "Return delivery",
-            date: deliveryDate || new Date()
+            date: deliveryDate ||  new Date()
         });
 
         await supplierDoc.save({ session });
@@ -154,7 +154,7 @@ exports.updateReturnDelivery = async (req, res) => {
             totalAmount: newTotal,
             remainingBalance: supplier.remainingBalance,
             note: "Updated return",
-            date: new Date()
+            date: deliveryDate || new Date()
         });
 
         await supplier.save({ session });

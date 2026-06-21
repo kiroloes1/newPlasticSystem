@@ -189,7 +189,7 @@ exports.addDebt = async (req, res) => {
   session.startTransaction();
   try {
     const { id } = req.params;
-    const { amount, note,paymentMethod } = req.body;
+    const { amount, note,paymentMethod ,date } = req.body;
     const userId=req.user.userId;
 
     if (!paymentMethod || !["cash" , "wallet" ,"instapay" ,"bank" ,"bank transfer" ,"work","mail"].includes(paymentMethod)) {
@@ -221,7 +221,7 @@ exports.addDebt = async (req, res) => {
       paymentMethod,
       amount,
       note: note?.trim(),
-      date: new Date()
+      date:date  || new Date()
     });
 
     await supplier.save({session});
@@ -240,6 +240,7 @@ exports.addDebt = async (req, res) => {
                 amount: Number(amount)
             }],
            supplierId: supplier._id,
+           date:date  || new Date()
 
             
         }], { session });
@@ -270,7 +271,7 @@ exports.paySupplier = async (req, res) => {
   try {
     
     const { id } = req.params;
-    const { amount, note , paymentMethod } = req.body;
+    const { amount, note , paymentMethod ,date } = req.body;
     const userId = req.user.userId;
 
         if (!paymentMethod || !["cash" , "wallet" ,"instapay" ,"bank" ,"bank transfer" ,"work","mail"].includes(paymentMethod)) {
@@ -306,7 +307,7 @@ exports.paySupplier = async (req, res) => {
           paymentMethod,
       amount,
       note: note?.trim(),
-      date: new Date()
+       date:date  || new Date()
     });
 
     await supplier.save({session});
@@ -326,6 +327,7 @@ if (paymentMethod === "cash") {
             amount: Number(amount)
         }],
         supplierId: supplier._id,
+       date:date  || new Date()
         
     }], { session });
 }

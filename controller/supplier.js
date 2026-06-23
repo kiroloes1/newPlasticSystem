@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const { getCashBox } = require(`${__dirname}/../services/moneyBox`);
 const Transaction = require(`${__dirname}/../models/TransactionBox`);
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+const deliveryMoedl=require(`${__dirname}/../models/delivery`);
+const returnDeliveryMoedl=require(`${__dirname}/../models/returnDelivery`);
 
 // ================= GET ALL =================
 exports.getAllSuppliers = async (req, res) => {

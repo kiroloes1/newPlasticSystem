@@ -401,7 +401,7 @@ exports.updateDelivery = async (req, res) => {
             items: itemsUpdate || [],
            supplierId: supplierDoc._id,
            deliverId: updated._id,
-            // date: deliveryDate || new Date()
+            date: deliveryDate || new Date()
             
         }], { session });
 

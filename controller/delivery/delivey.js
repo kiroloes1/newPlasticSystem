@@ -334,7 +334,7 @@ exports.updateDelivery = async (req, res) => {
             totalAmount,
             paid: paidAmount,
             remainingBalance: newBalance,
-            note: "Updated delivery",
+           note:notes ||"Updated delivery",
             date:  deliveryDate || new Date()
         });
 

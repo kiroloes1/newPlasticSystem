@@ -192,7 +192,7 @@ exports.getAllExpenses = async (req, res) => {
     const expenses = await Expense.find()
       .populate('createdBy', 'username')
       .populate('updatedBy', 'username')
-      .sort({ createdAt: -1 });
+      .sort({ expenseDate: -1 });
 
     res.status(200).json(expenses);
   } catch (err) {

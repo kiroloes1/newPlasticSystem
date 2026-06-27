@@ -34,7 +34,7 @@ delveryNumber: { type: Number },
        paidAmount: { type: Number, default: 0 },           
        paymentMethod:{
         type:String,
-        enum:["cash" , "wallet" ,"instapay" ,"bank","mail"]
+        enum:["cash" , "wallet" ,"instapay" ,"bank","mail","work"]
        }
   }],  
   paidAmount:{type: Number, default: 0 },   

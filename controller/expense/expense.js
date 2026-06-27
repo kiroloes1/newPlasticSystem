@@ -13,76 +13,56 @@ exports.createExpense = async (req, res) => {
     const userId = req.user.userId;
     const { items } = req.body;
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
-
-    // 1. Find today's expense
-    let expense = await Expense.findOne({
-      createdBy: userId,
-      createdAt: { $gte: startOfDay, $lte: endOfDay }
-    }).session(session);
-
-    let createdExpense;
-
-    if (expense) {
-      // 2. If exists → push new items
-      expense.items.push(...items);
-      expense.updatedBy = userId;
-
-      await expense.save({ session });
-      createdExpense = expense;
-    } else {
-      // 3. Create new expense
-      const result = await Expense.create([{
-        items,
-        createdBy: userId,
-        updatedBy: userId,
-      }], { session });
-
-      createdExpense = result[0];
+    if (!items || items.length === 0) {
+      return res.status(400).json({
+        message: "يجب إدخال مصروف واحد على الأقل"
+      });
     }
 
-    // 4. Get Cash Box
+    // إنشاء Expense جديد
+    const expense = await Expense.create([{
+      items,
+      createdBy: userId,
+      updatedBy: userId
+    }], { session });
+
+    const createdExpense = expense[0];
+
+    // الحصول على الخزنة
     const box = await getCashBox(userId, session);
 
-    // 5. Create Transaction
-    let transaction = null;
-
-    if (items && items.length > 0) {
-      transaction = await Transaction.create([{
-        moneyBoxId: box._id,
-        type: "expense",
-        items: items.map(item => ({
-          title: item.title + " | " + item.note,
-          category: "expense",
-          amount: item.amount
-        })),
-        expenseId: createdExpense._id,
-        note: "مصروفات خارجه من الخزنه",
-        totalAmount: items.reduce((sum, i) => sum + i.amount, 0)
-      }], { session });
-
-      transaction = transaction[0];
-    }
+    // إنشاء Transaction مرتبطة بهذا الـ Expense فقط
+    const transaction = await Transaction.create([{
+      moneyBoxId: box._id,
+      type: "expense",
+      items: items.map(item => ({
+        title: `${item.title}${item.note ? " | " + item.note : ""}`,
+        category: "expense",
+        amount: item.amount
+      })),
+      expenseId: createdExpense._id,
+      note: "مصروفات خارجه من الخزنه"
+    }], { session });
 
     await session.commitTransaction();
     session.endSession();
 
     res.status(201).json({
-      message: expense ? "Expense updated for today" : "Expense created successfully",
+      message: "Expense created successfully",
       expense: createdExpense,
-      transaction
+      transaction: transaction[0]
     });
 
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({
+      error: err.message
+    });
   }
 };
+
 exports.deleteExpense = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -91,16 +71,18 @@ exports.deleteExpense = async (req, res) => {
     const expense = await Expense.findById(req.params.id).session(session);
 
     if (!expense) {
-      return res.status(404).json({ message: "Expense not found" });
+      return res.status(404).json({
+        message: "Expense not found"
+      });
     }
 
-    // delete related transaction
-    await Transaction.deleteMany({ expenseId: expense._id }, { session });
+    await Transaction.deleteMany({
+      expenseId: expense._id
+    }).session(session);
 
     await expense.deleteOne({ session });
 
     await session.commitTransaction();
-    session.endSession();
 
     res.status(200).json({
       message: "Expense deleted successfully"
@@ -108,8 +90,13 @@ exports.deleteExpense = async (req, res) => {
 
   } catch (err) {
     await session.abortTransaction();
+
+    res.status(500).json({
+      error: err.message
+    });
+
+  } finally {
     session.endSession();
-    res.status(500).json({ error: err.message });
   }
 };
 
@@ -123,17 +110,18 @@ exports.updateExpense = async (req, res) => {
     const userId = req.user.userId;
     const { items } = req.body;
 
-    // 1. Find Expense
+    // البحث عن المصروف
     const expense = await Expense.findById(req.params.id).session(session);
 
     if (!expense) {
+      await session.abortTransaction();
       return res.status(404).json({
         message: "Expense not found"
       });
     }
 
-    // 2. Update Expense data
-    if (items) {
+    // تحديث العناصر
+    if (items && items.length > 0) {
       expense.items = items.map(item => ({
         title: item.title,
         amount: item.amount,
@@ -143,47 +131,55 @@ exports.updateExpense = async (req, res) => {
 
     expense.updatedBy = userId;
 
+    // حفظ الـ Expense (هيحسب totalAmount تلقائياً)
     await expense.save({ session });
 
-    // 3. Rebuild Transaction items (system controlled)
+    // تجهيز عناصر الـ Transaction
     const transactionItems = expense.items.map(item => ({
-      title: item.title,
-      amount: item.amount,
-      category: "expense" 
+      title: item.note
+        ? `${item.title} | ${item.note}`
+        : item.title,
+      category: "expense",
+      amount: item.amount
     }));
 
-    const totalAmount = expense.items.reduce((sum, i) => sum + i.amount, 0);
-
-    // 4. Update Transaction linked to Expense
-    await Transaction.findOneAndUpdate(
+    // تحديث الـ Transaction المرتبطة بالمصروف
+    const transaction = await Transaction.findOneAndUpdate(
       { expenseId: expense._id },
       {
         items: transactionItems,
-        totalAmount,
-        note: "Updated expense transaction"
+        totalAmount: expense.totalAmount,
+        note: "مصروفات خارجه من الخزنه"
       },
-      { session }
+      {
+        new: true,
+        session
+      }
     );
 
-    // 5. Commit
+    if (!transaction) {
+      throw new Error("Transaction not found");
+    }
+
     await session.commitTransaction();
-    session.endSession();
 
     res.status(200).json({
       message: "Expense updated successfully",
-      expense
+      expense,
+      transaction
     });
 
   } catch (err) {
     await session.abortTransaction();
-    session.endSession();
 
     res.status(500).json({
       error: err.message
     });
+
+  } finally {
+    session.endSession();
   }
 };
-
 
 // getAllExpenses
 exports.getAllExpenses = async (req, res) => {

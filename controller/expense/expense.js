@@ -7,7 +7,6 @@ const mongoose =require('mongoose');
 // create Expense
 exports.createExpense = async (req, res) => {
   const session = await mongoose.startSession();
-  
   session.startTransaction();
 
   try {
@@ -109,9 +108,9 @@ exports.updateExpense = async (req, res) => {
 
   try {
     const userId = req.user.userId;
-    const { items } = req.body;
+    const { items, expenseDate } = req.body;
 
-    // البحث عن المصروف
+  
     const expense = await Expense.findById(req.params.id).session(session);
 
     if (!expense) {
@@ -121,9 +120,14 @@ exports.updateExpense = async (req, res) => {
       });
     }
 
-    // تحديث العناصر
+   
+    if (expenseDate) {
+      expense.expenseDate = new Date(expenseDate);
+    }
+
+  
     if (items && items.length > 0) {
-      expense.items = items.map(item => ({
+      expense.items = items.map((item) => ({
         title: item.title,
         amount: item.amount,
         note: item.note || ""
@@ -132,11 +136,10 @@ exports.updateExpense = async (req, res) => {
 
     expense.updatedBy = userId;
 
-    // حفظ الـ Expense (هيحسب totalAmount تلقائياً)
     await expense.save({ session });
 
-    // تجهيز عناصر الـ Transaction
-    const transactionItems = expense.items.map(item => ({
+   
+    const transactionItems = expense.items.map((item) => ({
       title: item.note
         ? `${item.title} | ${item.note}`
         : item.title,
@@ -144,13 +147,14 @@ exports.updateExpense = async (req, res) => {
       amount: item.amount
     }));
 
-    // تحديث الـ Transaction المرتبطة بالمصروف
+  
     const transaction = await Transaction.findOneAndUpdate(
       { expenseId: expense._id },
       {
         items: transactionItems,
         totalAmount: expense.totalAmount,
-        note: "مصروفات خارجه من الخزنه"
+        note: "مصروفات خارجه من الخزنه",
+        date: expense.expenseDate 
       },
       {
         new: true,

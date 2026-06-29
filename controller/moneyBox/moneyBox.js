@@ -84,6 +84,93 @@ exports.getBalance = async (req, res) => {
     }
 };
 
+// new get transaction
+exports.getTransactions2 = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { type, from, to } = req.query;
+
+        const box = await getCashBox(userId);
+
+        // 1. تجهيز فلتر العمليات الحالية المطلوبة في الجرد
+        let filter = {
+            moneyBoxId: box._id, // تأكد من تفعيلها لضمان دقة صندوق العميل
+            totalAmount: { $gt: 0 }
+        };
+
+        if (type) filter.type = type;
+
+        if (from || to) {
+            filter.date = {};
+            if (from) filter.date.$gte = new Date(from);
+            if (to) filter.date.$lte = new Date(to);
+        }
+
+        // 2. جلب العمليات المفلترة بناءً على طلب العميل
+        const transactions = await Transaction.find(filter, { type: 1, totalAmount: 1, date: 1 })
+            .sort({ date: -1 })
+            .lean();
+
+
+        // 3. الحل السحري: حساب الرصيد المرحل (ما قبل تاريخ from)
+        let openingBalance = 0;
+
+        if (from) {
+            const previousSummary = await Transaction.aggregate([
+                {
+                    $match: {
+                        moneyBoxId: box._id,
+                        date: { $lt: new Date(from) } // كل العمليات الأقدم من تاريخ بداية الجرد الحالي
+                    }
+                },
+                {
+                    $group: {
+                        _id: "$type",
+                        total: { $sum: "$totalAmount" }
+                    }
+                }
+            ]);
+
+            let prevIncome = 0;
+            let prevExpense = 0;
+
+            previousSummary.forEach(r => {
+                if (r._id === "income") prevIncome = r.total;
+                if (r._id === "expense") prevExpense = r.total;
+            });
+
+            // الرصيد اللي اتبقى من الأيام اللي فاتت وهيترحل لجرد النهاردة
+            openingBalance = prevIncome - prevExpense;
+        }
+
+
+        // 4. حساب إجماليات العمليات المعروضة حالياً في الصفحة (حركات اليوم نفسه)
+        let periodIncome = 0;
+        let periodExpense = 0;
+
+        transactions.forEach(t => {
+            if (t.type === "income") periodIncome += t.totalAmount;
+            if (t.type === "expense") periodExpense += t.totalAmount;
+        });
+
+
+        // 5. إرجاع البيانات كاملة للفرونت إند
+        return res.status(200).json({
+            count: transactions.length,
+            openingBalance,                               // الرصيد المرحل (الـ 50 بتاعة إمبارح)
+            periodIncome,                                 // إجمالي دخل الفترة المحددة
+            periodExpense,                                // إجمالي مصروفات الفترة المحددة
+            closingBalance: openingBalance + (periodIncome - periodExpense), // الرصيد النهائي الصافي بعد الجرد الحالي
+            transactions                                  // قائمة العمليات المعروضة
+        });
+
+    } catch (err) {
+        return res.status(500).json({
+            message: err.message
+        });
+    }
+};
+
 // get transactions
 exports.getTransactions = async (req, res) => {
     try {

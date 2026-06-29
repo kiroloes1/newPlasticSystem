@@ -107,7 +107,7 @@ exports.getTransactions2 = async (req, res) => {
         }
 
         // 2. جلب العمليات المفلترة بناءً على طلب العميل
-        const transactions = await Transaction.find(filter, { type: 1, totalAmount: 1, date: 1 })
+        const transactions = await Transaction.find(filter)
             .sort({ date: -1 })
             .lean();
 

@@ -14,6 +14,10 @@ router.post('/', deliveryController.createDelivery);
 // Update a delivery
 router.put('/:id', deliveryController.updateDelivery);
 
+
+
+router.delete('/less/:id', deliveryController.deleteDeliveryless);
+
 // Delete a delivery
 router.delete('/:id', deliveryController.deleteDelivery);
 

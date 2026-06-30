@@ -641,3 +641,51 @@ exports.getDeliveryBySupplier = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+
+
+
+// get all deliveries
+exports.getAllDeliveriesless = async (req, res) => {
+    try {
+
+        const deliveries = await derliveryModel.find()
+            .populate("supplier", "name")
+            .sort({ deliveryDate: -1 });
+
+        const deliveryless = deliveries.filter(e => e.supplier == null);
+        const total = deliveryless.length;
+
+        res.status(200).json({
+            deliveryless,
+            total
+        });
+
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// delete delivery
+exports.deleteDeliveryless = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const delivery = await derliveryModel.findByIdAndDelete(id);
+
+        if (!delivery) {
+            return res.status(404).json({
+                message: "Delivery not found"
+            });
+        }
+
+        res.status(200).json({
+            message: "Delivery deleted successfully"
+        });
+
+    } catch (err) {
+        res.status(500).json({
+            message: err.message
+        });
+    }
+};
+

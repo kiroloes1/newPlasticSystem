@@ -23,6 +23,7 @@ router.delete('/:id', deliveryController.deleteDelivery);
 
 // Get all deliveries
 router.get('/', deliveryController.getAllDeliveries);
+router.get('/getAllDeliveriesless', deliveryController.getAllDeliveriesless);
 
 // Get delivery by supplier id
 router.get('/getDeliveryBySupplier/:supplierId', deliveryController.getDeliveryBySupplier);

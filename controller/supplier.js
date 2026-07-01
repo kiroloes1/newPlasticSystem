@@ -472,3 +472,163 @@ exports.deletePaymentHistory = async (req, res) => {
   }
 };
 
+// edit payment history
+exports.editPaymentHistory = async (req, res) => {
+  const session = await mongoose.startSession();
+
+  try {
+
+    session.startTransaction();
+
+    const { supplierId, paymentId } = req.params;
+
+    const {
+      amount,
+      paymentMethod,
+      type,
+      note,
+      date
+    } = req.body;
+
+    const supplier = await Supplier.findById(supplierId).session(session);
+
+    if (!supplier) {
+      await session.abortTransaction();
+      session.endSession();
+
+      return res.status(404).json({
+        message: "التاجر غير موجود"
+      });
+    }
+
+    const payment = supplier.paymentHistory.id(paymentId);
+
+    if (!payment) {
+
+      await session.abortTransaction();
+      session.endSession();
+
+      return res.status(404).json({
+        message: "العملية غير موجودة"
+      });
+
+    }
+
+    // ------------------------
+    // رجع تأثير العملية القديمة
+    // ------------------------
+
+    if (payment.type === "payment") {
+
+      supplier.remainingBalance += payment.amount;
+
+    } else {
+
+      supplier.remainingBalance -= payment.amount;
+
+    }
+
+    // ------------------------
+    // لو Cash احذف الـ Transaction القديمة
+    // ------------------------
+
+    if (payment.paymentMethod === "cash") {
+
+      await Transaction.findOneAndDelete({
+        supplierId: supplier._id,
+        totalAmount: payment.amount,
+        type: payment.type === "payment"
+          ? "expense"
+          : "income"
+      }).session(session);
+
+    }
+
+    // ------------------------
+    // تعديل البيانات
+    // ------------------------
+
+    payment.amount = amount;
+    payment.paymentMethod = paymentMethod;
+    payment.type = type;
+    payment.note = note;
+    payment.date = date;
+
+    // ------------------------
+    // طبق تأثير العملية الجديدة
+    // ------------------------
+
+    if (payment.type === "payment") {
+
+      supplier.remainingBalance -= payment.amount;
+
+    } else {
+
+      supplier.remainingBalance += payment.amount;
+
+    }
+
+    supplier.remainingBalance = Number(
+      supplier.remainingBalance.toFixed(2)
+    );
+
+    // ------------------------
+    // أنشئ Transaction جديدة لو Cash
+    // ------------------------
+
+    if (payment.paymentMethod === "cash") {
+
+      await Transaction.create([{
+
+        supplierId: supplier._id,
+
+        totalAmount: payment.amount,
+
+        type: payment.type === "payment"
+          ? "expense"
+          : "income",
+
+        paymentMethod: "cash",
+
+        note: payment.note,
+
+        date: payment.date
+
+      }], { session });
+
+    }
+
+    await supplier.save({ session });
+
+    await session.commitTransaction();
+
+    session.endSession();
+
+    res.status(200).json({
+
+      message: "تم تعديل العملية بنجاح",
+
+      payment,
+
+      remainingBalance: supplier.remainingBalance
+
+    });
+
+  } catch (err) {
+
+    await session.abortTransaction();
+
+    session.endSession();
+
+    res.status(500).json({
+
+      message: "Server error",
+
+      error: err.message
+
+    });
+
+  }
+
+};
+

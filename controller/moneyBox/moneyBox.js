@@ -6,7 +6,7 @@ const { getCashBox } = require(`${__dirname}/../../services/moneyBox`);
 // add transaction to money box
 exports.addTransaction = async (req, res) => {
     try {
-        const { type, note, items } = req.body;
+        const { type, note, items , date } = req.body;
         const userId = req.user.userId;
 
         if (!type || !["income", "expense"].includes(type)) {
@@ -23,7 +23,8 @@ exports.addTransaction = async (req, res) => {
             moneyBoxId: box._id,
             type,
             note: note?.trim(),
-            items
+            items,
+            date
         });
 
         return res.status(200).json({
@@ -275,7 +276,7 @@ exports.deleteTransaction = async (req, res) => {
 exports.updateTransaction = async (req, res) => {
     try {
         const { id } = req.params;
-        const { note, items } = req.body;
+        const { note, items , date } = req.body;
         const userId = req.user.userId;
 
         const box = await getCashBox(userId);
@@ -295,6 +296,9 @@ exports.updateTransaction = async (req, res) => {
 
         if (items && Array.isArray(items)) {
             transaction.items = items;
+        }
+         if(date){
+            transaction.date=date;
         }
 
         await transaction.save(); // total auto recalculated

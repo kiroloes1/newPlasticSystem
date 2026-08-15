@@ -86,16 +86,16 @@ exports.getBalance = async (req, res) => {
 };
 
 // new get transaction
+// new get transaction
 exports.getTransactions2 = async (req, res) => {
     try {
         const userId = req.user.userId;
         const { type, from, to } = req.query;
 
-        const box = await getCashBox(userId);
 
-        // 1. تجهيز فلتر العمليات الحالية المطلوبة في الجرد
+      
         let filter = {
-            moneyBoxId: box._id, // تأكد من تفعيلها لضمان دقة صندوق العميل
+         
             totalAmount: { $gt: 0 }
         };
 
@@ -107,21 +107,20 @@ exports.getTransactions2 = async (req, res) => {
             if (to) filter.date.$lte = new Date(to);
         }
 
-        // 2. جلب العمليات المفلترة بناءً على طلب العميل
+       
         const transactions = await Transaction.find(filter)
             .sort({ date: -1 })
             .lean();
 
 
-        // 3. الحل السحري: حساب الرصيد المرحل (ما قبل تاريخ from)
         let openingBalance = 0;
 
         if (from) {
             const previousSummary = await Transaction.aggregate([
                 {
                     $match: {
-                       
-                        date: { $lt: new Date(from) } // كل العمليات الأقدم من تاريخ بداية الجرد الحالي
+                     
+                        date: { $lt: new Date(from) } 
                     }
                 },
                 {
@@ -140,12 +139,11 @@ exports.getTransactions2 = async (req, res) => {
                 if (r._id === "expense") prevExpense = r.total;
             });
 
-            // الرصيد اللي اتبقى من الأيام اللي فاتت وهيترحل لجرد النهاردة
             openingBalance = prevIncome - prevExpense;
         }
 
 
-        // 4. حساب إجماليات العمليات المعروضة حالياً في الصفحة (حركات اليوم نفسه)
+
         let periodIncome = 0;
         let periodExpense = 0;
 
@@ -155,14 +153,14 @@ exports.getTransactions2 = async (req, res) => {
         });
 
 
-        // 5. إرجاع البيانات كاملة للفرونت إند
+ 
         return res.status(200).json({
             count: transactions.length,
-            openingBalance,                               // الرصيد المرحل (الـ 50 بتاعة إمبارح)
-            periodIncome,                                 // إجمالي دخل الفترة المحددة
-            periodExpense,                                // إجمالي مصروفات الفترة المحددة
-            closingBalance: openingBalance + (periodIncome - periodExpense), // الرصيد النهائي الصافي بعد الجرد الحالي
-            transactions                                  // قائمة العمليات المعروضة
+            openingBalance,                               
+            periodIncome,                                 
+            periodExpense,                                
+            closingBalance: openingBalance + (periodIncome - periodExpense),
+            transactions                                
         });
 
     } catch (err) {

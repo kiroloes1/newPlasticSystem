@@ -120,7 +120,7 @@ exports.getTransactions2 = async (req, res) => {
             const previousSummary = await Transaction.aggregate([
                 {
                     $match: {
-                        moneyBoxId: box._id,
+                       
                         date: { $lt: new Date(from) } // كل العمليات الأقدم من تاريخ بداية الجرد الحالي
                     }
                 },
